@@ -72,11 +72,11 @@ development_status:
   epic-3-retrospective: optional
 
   # Epic 4: Kubernetes 集群接入
-  epic-4: in-progress
+  epic-4: done
   4-1-k8s-cluster-data-model-and-api: done
   4-2-cluster-access-kubeconfig-import: done
   4-3-workload-management-interface: done
-  4-4-service-ingress-configmap-secret-management: backlog
+  4-4-service-ingress-configmap-secret-management: done
   epic-4-retrospective: optional
 
   # Epic 5: Kubernetes Pod 交互与 Helm
