@@ -18,6 +18,7 @@ var (
 	clusterMetricsHandler *ClusterMetricsHandler
 	workloadHandler     *WorkloadHandler
 	alertHandler        *AlertHandler
+	auditHandler        *AuditHandler
 )
 
 // RegisterHandlers registers the API handlers
@@ -60,6 +61,11 @@ func RegisterWorkloadHandler(workloadH *WorkloadHandler) {
 // RegisterAlertHandler registers the alert handler
 func RegisterAlertHandler(alertH *AlertHandler) {
 	alertHandler = alertH
+}
+
+// RegisterAuditHandler registers the audit handler
+func RegisterAuditHandler(auditH *AuditHandler) {
+	auditHandler = auditH
 }
 
 // Health returns the health check response
@@ -322,6 +328,23 @@ func API(w http.ResponseWriter, r *http.Request) {
 			alertHandler.ListEvents(w, r)
 		default:
 			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Event operation not found")
+		}
+		return
+	}
+
+	// Audit log endpoints
+	if strings.HasPrefix(path, "/api/v1/audit-logs") && auditHandler != nil {
+		switch {
+		case path == "/api/v1/audit-logs" && method == http.MethodGet:
+			auditHandler.ListAuditLogs(w, r)
+		case path == "/api/v1/audit-logs/summary" && method == http.MethodGet:
+			auditHandler.GetAuditLogSummary(w, r)
+		case path == "/api/v1/audit-logs/user-activity" && method == http.MethodGet:
+			auditHandler.GetUserActivity(w, r)
+		case path == "/api/v1/audit-logs/resource-activity" && method == http.MethodGet:
+			auditHandler.GetResourceActivity(w, r)
+		default:
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Audit log operation not found")
 		}
 		return
 	}

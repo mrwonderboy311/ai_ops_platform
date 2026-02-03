@@ -81,7 +81,7 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	// Create services (pass nil for now, will be properly initialized in production)
 	authService := service.NewAuthService(userRepo, jwtManager, tokenRepo, ldapClient)
 
-	// Create host, scan, agent, SSH, file, process, batch task, cluster, cluster metrics, workload and alert handlers (requires database)
+	// Create host, scan, agent, SSH, file, process, batch task, cluster, cluster metrics, workload, alert and audit handlers (requires database)
 	var hostHandler *handler.HostHandler
 	var scanHandler *handler.ScanHandler
 	var agentHandler *handler.AgentHandler
@@ -93,6 +93,7 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	var clusterMetricsHandler *handler.ClusterMetricsHandler
 	var workloadHandler *handler.WorkloadHandler
 	var alertHandler *handler.AlertHandler
+	var auditHandler *handler.AuditHandler
 	if gormDB != nil {
 		hostHandler = handler.NewHostHandler(gormDB)
 		scanHandler = handler.NewScanHandler(gormDB)
@@ -105,6 +106,7 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 		clusterMetricsHandler = handler.NewClusterMetricsHandler(gormDB)
 		workloadHandler = handler.NewWorkloadHandler(gormDB)
 		alertHandler = handler.NewAlertHandler(gormDB)
+		auditHandler = handler.NewAuditHandler(gormDB)
 	}
 
 	// Register handlers
@@ -158,6 +160,11 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 		handler.RegisterAlertHandler(alertHandler)
 	}
 
+	// Register audit handler
+	if auditHandler != nil {
+		handler.RegisterAuditHandler(auditHandler)
+	}
+
 	// Apply middleware chain
 	allowedOrigins := []string{"http://localhost:3000", "http://localhost:5173"}
 	h := middleware.Chain(
@@ -166,6 +173,7 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 		middleware.RateLimit,
 		middleware.CORS(allowedOrigins),
 		middleware.Auth,
+		middleware.AuditMiddleware(gormDB),
 	)(mux)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
