@@ -8,11 +8,12 @@ import (
 )
 
 var (
-	hostHandler    *HostHandler
-	scanHandler    *ScanHandler
-	agentHandler   *AgentHandler
-	fileHandler    *FileTransferHandler
-	processHandler *ProcessManagementHandler
+	hostHandler     *HostHandler
+	scanHandler     *ScanHandler
+	agentHandler    *AgentHandler
+	fileHandler     *FileTransferHandler
+	processHandler  *ProcessManagementHandler
+	batchTaskHandler *BatchTaskHandler
 )
 
 // RegisterHandlers registers the API handlers
@@ -30,6 +31,11 @@ func RegisterFileHandler(fileH *FileTransferHandler) {
 // RegisterProcessHandler registers the process management handler
 func RegisterProcessHandler(processH *ProcessManagementHandler) {
 	processHandler = processH
+}
+
+// RegisterBatchTaskHandler registers the batch task handler
+func RegisterBatchTaskHandler(batchH *BatchTaskHandler) {
+	batchTaskHandler = batchH
 }
 
 // Health returns the health check response
@@ -125,6 +131,31 @@ func API(w http.ResponseWriter, r *http.Request) {
 			processHandler.GetExecutions(w, r)
 		} else {
 			respondWithError(w, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "Process service not available")
+		}
+		return
+	}
+
+	// Batch task endpoints
+	if strings.HasPrefix(path, "/api/v1/batch-tasks") && batchTaskHandler != nil {
+		switch {
+		case path == "/api/v1/batch-tasks" && method == http.MethodPost:
+			batchTaskHandler.CreateBatchTask(w, r)
+		case path == "/api/v1/batch-tasks" && method == http.MethodGet:
+			batchTaskHandler.ListBatchTasks(w, r)
+		case path == "/api/v1/batch-tasks/execute" && method == http.MethodPost:
+			batchTaskHandler.ExecuteBatchTask(w, r)
+		case path == "/api/v1/batch-tasks/cancel" && method == http.MethodPost:
+			batchTaskHandler.CancelBatchTask(w, r)
+		case matchesPattern(path, "/api/v1/batch-tasks/*"):
+			if method == http.MethodGet {
+				batchTaskHandler.GetBatchTask(w, r)
+			} else if method == http.MethodDelete {
+				batchTaskHandler.DeleteBatchTask(w, r)
+			} else {
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Batch task operation not found")
+			}
+		default:
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Batch task operation not found")
 		}
 		return
 	}

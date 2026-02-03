@@ -67,7 +67,7 @@ development_status:
   3-3-file-transfer-api: done
   3-4-file-management-interface: done
   3-5-process-management-api: done
-  3-6-batch-task-engine: backlog
+  3-6-batch-task-engine: done
   3-7-batch-task-execution-interface: backlog
   epic-3-retrospective: optional
 
