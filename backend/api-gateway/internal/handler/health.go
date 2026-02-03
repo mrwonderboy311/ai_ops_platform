@@ -20,6 +20,7 @@ var (
 	alertHandler        *AlertHandler
 	auditHandler        *AuditHandler
 	performanceHandler  *PerformanceHandler
+	notificationHandler *NotificationHandler
 )
 
 // RegisterHandlers registers the API handlers
@@ -72,6 +73,11 @@ func RegisterAuditHandler(auditH *AuditHandler) {
 // RegisterPerformanceHandler registers the performance handler
 func RegisterPerformanceHandler(perfH *PerformanceHandler) {
 	performanceHandler = perfH
+}
+
+// RegisterNotificationHandler registers the notification handler
+func RegisterNotificationHandler(notifH *NotificationHandler) {
+	notificationHandler = notifH
 }
 
 // Health returns the health check response
@@ -374,6 +380,41 @@ func API(w http.ResponseWriter, r *http.Request) {
 			performanceHandler.GetMetricStatistics(w, r)
 		default:
 			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Performance operation not found")
+		}
+		return
+	}
+
+	// Notification endpoints
+	if strings.HasPrefix(path, "/api/v1/notifications") && notificationHandler != nil {
+		switch {
+		case path == "/api/v1/notifications" && method == http.MethodGet:
+			notificationHandler.GetNotifications(w, r)
+		case path == "/api/v1/notifications" && method == http.MethodPost:
+			notificationHandler.CreateNotification(w, r)
+		case path == "/api/v1/notifications/unread-count" && method == http.MethodGet:
+			notificationHandler.GetUnreadCount(w, r)
+		case path == "/api/v1/notifications/mark-all-read" && method == http.MethodPost:
+			notificationHandler.MarkAllAsRead(w, r)
+		case path == "/api/v1/notifications/stats" && method == http.MethodGet:
+			notificationHandler.GetNotificationStats(w, r)
+		case path == "/api/v1/notifications/preferences" && method == http.MethodGet:
+			notificationHandler.GetNotificationPreference(w, r)
+		case path == "/api/v1/notifications/preferences" && method == http.MethodPut:
+			notificationHandler.UpdateNotificationPreference(w, r)
+		case matchesPattern(path, "/api/v1/notifications/*/read"):
+			if method == http.MethodPost || method == http.MethodPut {
+				notificationHandler.MarkAsRead(w, r)
+			} else {
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Notification operation not found")
+			}
+		case matchesPattern(path, "/api/v1/notifications/*"):
+			if method == http.MethodDelete {
+				notificationHandler.DeleteNotification(w, r)
+			} else {
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Notification operation not found")
+			}
+		default:
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Notification operation not found")
 		}
 		return
 	}
