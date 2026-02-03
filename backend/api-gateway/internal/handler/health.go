@@ -8,13 +8,14 @@ import (
 )
 
 var (
-	hostHandler      *HostHandler
-	scanHandler      *ScanHandler
-	agentHandler     *AgentHandler
-	fileHandler      *FileTransferHandler
-	processHandler   *ProcessManagementHandler
-	batchTaskHandler *BatchTaskHandler
-	clusterHandler   *ClusterHandler
+	hostHandler         *HostHandler
+	scanHandler         *ScanHandler
+	agentHandler        *AgentHandler
+	fileHandler         *FileTransferHandler
+	processHandler      *ProcessManagementHandler
+	batchTaskHandler    *BatchTaskHandler
+	clusterHandler      *ClusterHandler
+	clusterMetricsHandler *ClusterMetricsHandler
 )
 
 // RegisterHandlers registers the API handlers
@@ -42,6 +43,11 @@ func RegisterBatchTaskHandler(batchH *BatchTaskHandler) {
 // RegisterClusterHandler registers the cluster handler
 func RegisterClusterHandler(clusterH *ClusterHandler) {
 	clusterHandler = clusterH
+}
+
+// RegisterClusterMetricsHandler registers the cluster metrics handler
+func RegisterClusterMetricsHandler(metricsH *ClusterMetricsHandler) {
+	clusterMetricsHandler = metricsH
 }
 
 // Health returns the health check response
@@ -168,6 +174,36 @@ func API(w http.ResponseWriter, r *http.Request) {
 
 	// Cluster management endpoints
 	if strings.HasPrefix(path, "/api/v1/clusters") && clusterHandler != nil {
+		// Check for metrics endpoints first
+		if clusterMetricsHandler != nil {
+			switch {
+			case matchesPattern(path, "/api/v1/clusters/*/metrics") && method == http.MethodGet:
+				clusterMetricsHandler.GetClusterMetrics(w, r)
+				return
+			case matchesPattern(path, "/api/v1/clusters/*/metrics/summary") && method == http.MethodGet:
+				clusterMetricsHandler.GetClusterMetricsSummary(w, r)
+				return
+			case matchesPattern(path, "/api/v1/clusters/*/metrics/live") && method == http.MethodGet:
+				clusterMetricsHandler.GetLiveClusterMetrics(w, r)
+				return
+			case matchesPattern(path, "/api/v1/clusters/*/refresh") && method == http.MethodPost:
+				clusterMetricsHandler.RefreshMetrics(w, r)
+				return
+			case matchesPattern(path, "/api/v1/clusters/*/namespaces") && method == http.MethodGet:
+				clusterMetricsHandler.ListNamespaces(w, r)
+				return
+			case matchesPattern(path, "/api/v1/clusters/*/namespaces/*/metrics") && method == http.MethodGet:
+				clusterMetricsHandler.GetPodMetrics(w, r)
+				return
+			case matchesPattern(path, "/api/v1/nodes/*/metrics") && method == http.MethodGet:
+				clusterMetricsHandler.GetNodeMetrics(w, r)
+				return
+			case matchesPattern(path, "/api/v1/nodes/*/live-metrics") && method == http.MethodGet:
+				clusterMetricsHandler.GetLiveNodeMetrics(w, r)
+				return
+			}
+		}
+
 		switch {
 		case path == "/api/v1/clusters" && method == http.MethodPost:
 			clusterHandler.CreateCluster(w, r)
