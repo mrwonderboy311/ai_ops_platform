@@ -1,6 +1,6 @@
 module github.com/wangjialin/myops/pkg
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/go-ldap/ldap/v3 v3.4.12
@@ -24,4 +24,7 @@ require (
 	github.com/pkg/sftp v1.13.10 // indirect
 	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
+	k8s.io/api v0.35.0 // indirect
+	k8s.io/apimachinery v0.35.0 // indirect
+	k8s.io/client-go v0.35.0 // indirect
 )

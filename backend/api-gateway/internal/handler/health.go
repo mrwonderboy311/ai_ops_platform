@@ -8,12 +8,13 @@ import (
 )
 
 var (
-	hostHandler     *HostHandler
-	scanHandler     *ScanHandler
-	agentHandler    *AgentHandler
-	fileHandler     *FileTransferHandler
-	processHandler  *ProcessManagementHandler
+	hostHandler      *HostHandler
+	scanHandler      *ScanHandler
+	agentHandler     *AgentHandler
+	fileHandler      *FileTransferHandler
+	processHandler   *ProcessManagementHandler
 	batchTaskHandler *BatchTaskHandler
+	clusterHandler   *ClusterHandler
 )
 
 // RegisterHandlers registers the API handlers
@@ -36,6 +37,11 @@ func RegisterProcessHandler(processH *ProcessManagementHandler) {
 // RegisterBatchTaskHandler registers the batch task handler
 func RegisterBatchTaskHandler(batchH *BatchTaskHandler) {
 	batchTaskHandler = batchH
+}
+
+// RegisterClusterHandler registers the cluster handler
+func RegisterClusterHandler(clusterH *ClusterHandler) {
+	clusterHandler = clusterH
 }
 
 // Health returns the health check response
@@ -156,6 +162,35 @@ func API(w http.ResponseWriter, r *http.Request) {
 			}
 		default:
 			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Batch task operation not found")
+		}
+		return
+	}
+
+	// Cluster management endpoints
+	if strings.HasPrefix(path, "/api/v1/clusters") && clusterHandler != nil {
+		switch {
+		case path == "/api/v1/clusters" && method == http.MethodPost:
+			clusterHandler.CreateCluster(w, r)
+		case path == "/api/v1/clusters" && method == http.MethodGet:
+			clusterHandler.ListClusters(w, r)
+		case path == "/api/v1/clusters/test-connection" && method == http.MethodPost:
+			clusterHandler.TestConnection(w, r)
+		case matchesPattern(path, "/api/v1/clusters/*/nodes") && method == http.MethodGet:
+			clusterHandler.GetClusterNodes(w, r)
+		case matchesPattern(path, "/api/v1/clusters/*/info") && method == http.MethodGet:
+			clusterHandler.GetClusterInfo(w, r)
+		case matchesPattern(path, "/api/v1/clusters/*"):
+			if method == http.MethodGet {
+				clusterHandler.GetCluster(w, r)
+			} else if method == http.MethodPut {
+				clusterHandler.UpdateCluster(w, r)
+			} else if method == http.MethodDelete {
+				clusterHandler.DeleteCluster(w, r)
+			} else {
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Cluster operation not found")
+			}
+		default:
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Cluster operation not found")
 		}
 		return
 	}
