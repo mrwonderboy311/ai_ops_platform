@@ -11,6 +11,7 @@ var (
 	hostHandler *HostHandler
 	scanHandler *ScanHandler
 	agentHandler *AgentHandler
+	fileHandler *FileTransferHandler
 )
 
 // RegisterHandlers registers the API handlers
@@ -18,6 +19,11 @@ func RegisterHandlers(hostH *HostHandler, scanH *ScanHandler, agentH *AgentHandl
 	hostHandler = hostH
 	scanHandler = scanH
 	agentHandler = agentH
+}
+
+// RegisterFileHandler registers the file transfer handler
+func RegisterFileHandler(fileH *FileTransferHandler) {
+	fileHandler = fileH
 }
 
 // Health returns the health check response
@@ -34,6 +40,7 @@ func API(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	path := r.URL.Path
+	method := r.Method
 
 	// Route to appropriate handler
 	if strings.HasPrefix(path, "/api/v1/agent/report") {
@@ -56,6 +63,37 @@ func API(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// File transfer endpoints
+	if strings.HasPrefix(path, "/api/v1/files/") && fileHandler != nil {
+		switch {
+		case path == "/api/v1/files/list" && method == http.MethodPost:
+			fileHandler.ListDirectory(w, r)
+		case path == "/api/v1/files/upload" && method == http.MethodPost:
+			fileHandler.UploadFile(w, r)
+		case path == "/api/v1/files/download" && method == http.MethodPost:
+			fileHandler.DownloadFile(w, r)
+		case path == "/api/v1/files/delete" && method == http.MethodPost:
+			fileHandler.DeleteFile(w, r)
+		case path == "/api/v1/files/mkdir" && method == http.MethodPost:
+			fileHandler.CreateDirectory(w, r)
+		case path == "/api/v1/files/transfers" && method == http.MethodGet:
+			fileHandler.GetTransfers(w, r)
+		default:
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "File operation not found")
+		}
+		return
+	}
+
+	// Host-specific file transfer endpoints
+	if matchesPattern(path, "/api/v1/hosts/*/transfers") && method == http.MethodGet {
+		if fileHandler != nil {
+			fileHandler.GetTransfers(w, r)
+		} else {
+			respondWithError(w, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "File service not available")
+		}
+		return
+	}
+
 	if strings.HasPrefix(path, "/api/v1/hosts") {
 		// Host management endpoints
 		if hostHandler != nil {
@@ -68,4 +106,22 @@ func API(w http.ResponseWriter, r *http.Request) {
 
 	// Unknown endpoint
 	respondWithError(w, http.StatusNotFound, "NOT_FOUND", "API endpoint not found")
+}
+
+// matchesPattern checks if a path matches a pattern with wildcards
+func matchesPattern(path, pattern string) bool {
+	pathParts := strings.Split(strings.Trim(path, "/"), "/")
+	patternParts := strings.Split(strings.Trim(pattern, "/"), "/")
+
+	if len(pathParts) != len(patternParts) {
+		return false
+	}
+
+	for i := 0; i < len(patternParts); i++ {
+		if patternParts[i] != "*" && patternParts[i] != pathParts[i] {
+			return false
+		}
+	}
+
+	return true
 }

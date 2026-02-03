@@ -81,16 +81,18 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	// Create services (pass nil for now, will be properly initialized in production)
 	authService := service.NewAuthService(userRepo, jwtManager, tokenRepo, ldapClient)
 
-	// Create host, scan, agent and SSH handlers (requires database)
+	// Create host, scan, agent, SSH and file handlers (requires database)
 	var hostHandler *handler.HostHandler
 	var scanHandler *handler.ScanHandler
 	var agentHandler *handler.AgentHandler
 	var sshWSHandler *handler.SSHWebSocketHandler
+	var fileHandler *handler.FileTransferHandler
 	if gormDB != nil {
 		hostHandler = handler.NewHostHandler(gormDB)
 		scanHandler = handler.NewScanHandler(gormDB)
 		agentHandler = handler.NewAgentHandler(gormDB)
 		sshWSHandler = handler.NewSSHWebSocketHandler(gormDB, nil) // TODO: pass proper logger
+		fileHandler = handler.NewFileTransferHandler(gormDB)
 	}
 
 	// Register handlers
@@ -108,6 +110,11 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 
 	// Register host, scan and agent handlers
 	handler.RegisterHandlers(hostHandler, scanHandler, agentHandler)
+
+	// Register file transfer handler
+	if fileHandler != nil {
+		handler.RegisterFileHandler(fileHandler)
+	}
 
 	// Apply middleware chain
 	allowedOrigins := []string{"http://localhost:3000", "http://localhost:5173"}
