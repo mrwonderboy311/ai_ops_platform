@@ -81,6 +81,14 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	// Create services (pass nil for now, will be properly initialized in production)
 	authService := service.NewAuthService(userRepo, jwtManager, tokenRepo, ldapClient)
 
+	// Create host and scan handlers (requires database)
+	var hostHandler *handler.HostHandler
+	var scanHandler *handler.ScanHandler
+	if gormDB != nil {
+		hostHandler = handler.NewHostHandler(gormDB)
+		scanHandler = handler.NewScanHandler(gormDB)
+	}
+
 	// Register handlers
 	mux.Handle("/api/v1/auth/register", handler.NewRegisterHandler(authService))
 	mux.Handle("/api/v1/auth/login", handler.NewLoginHandler(authService))
@@ -88,6 +96,9 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	mux.Handle("/api/v1/auth/refresh", handler.NewRefreshTokenHandler(authService))
 	mux.HandleFunc("/health", handler.Health)
 	mux.HandleFunc("/api/", handler.API) // Catch-all for API routes
+
+	// Register host and scan handlers
+	handler.RegisterHandlers(hostHandler, scanHandler)
 
 	// Apply middleware chain
 	allowedOrigins := []string{"http://localhost:3000", "http://localhost:5173"}

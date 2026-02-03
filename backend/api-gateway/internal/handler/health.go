@@ -4,7 +4,19 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 )
+
+var (
+	hostHandler *HostHandler
+	scanHandler *ScanHandler
+)
+
+// RegisterHandlers registers the API handlers
+func RegisterHandlers(hostH *HostHandler, scanH *ScanHandler) {
+	hostHandler = hostH
+	scanHandler = scanH
+}
 
 // Health returns the health check response
 func Health(w http.ResponseWriter, r *http.Request) {
@@ -19,14 +31,29 @@ func Health(w http.ResponseWriter, r *http.Request) {
 func API(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	// Placeholder for API routes
-	// Will be replaced with actual handlers in subsequent stories
-	w.WriteHeader(http.StatusNotImplemented)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"error": map[string]interface{}{
-			"code":    "NOT_IMPLEMENTED",
-			"message": "API endpoint not yet implemented",
-		},
-		"requestId": generateRequestID(),
-	})
+	path := r.URL.Path
+
+	// Route to appropriate handler
+	if strings.HasPrefix(path, "/api/v1/hosts/scan-tasks/") {
+		// Scan task status query
+		if scanHandler != nil {
+			scanHandler.GetScanStatus(w, r)
+		} else {
+			respondWithError(w, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "Scan service not available")
+		}
+		return
+	}
+
+	if strings.HasPrefix(path, "/api/v1/hosts") {
+		// Host management endpoints
+		if hostHandler != nil {
+			hostHandler.ServeHTTP(w, r)
+		} else {
+			respondWithError(w, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "Host service not available")
+		}
+		return
+	}
+
+	// Unknown endpoint
+	respondWithError(w, http.StatusNotFound, "NOT_FOUND", "API endpoint not found")
 }

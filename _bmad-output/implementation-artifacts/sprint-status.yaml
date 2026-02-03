@@ -53,7 +53,7 @@ development_status:
   # Epic 2: 主机发现与管理
   epic-2: in-progress
   2-1-host-data-model-and-api: done
-  2-2-ssh-passive-scanning: backlog
+  2-2-ssh-passive-scanning: done
   2-3-agent-development-and-active-reporting: backlog
   2-4-host-registration-and-approval: backlog
   2-5-frontend-host-list-page: backlog
