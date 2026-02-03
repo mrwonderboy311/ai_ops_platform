@@ -80,8 +80,8 @@ development_status:
   epic-4-retrospective: optional
 
   # Epic 5: Kubernetes Pod 交互与 Helm
-  epic-5: backlog
-  5-1-pod-list-and-detail-interface: backlog
+  epic-5: in-progress
+  5-1-pod-list-and-detail-interface: done
   5-2-pod-log-stream-websocket: backlog
   5-3-pod-terminal-websocket: backlog
   5-4-helm-repository-management: backlog
