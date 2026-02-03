@@ -7,18 +7,23 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/wangjialin/myops/pkg/config"
 	"github.com/wangjialin/myops/pkg/model"
 	"gorm.io/gorm"
 )
 
 // AgentHandler handles agent HTTP requests
 type AgentHandler struct {
-	db *gorm.DB
+	db                *gorm.DB
+	autoApprovalConfig *config.AutoApprovalConfig
 }
 
 // NewAgentHandler creates a new AgentHandler
 func NewAgentHandler(db *gorm.DB) *AgentHandler {
-	return &AgentHandler{db: db}
+	return &AgentHandler{
+		db:                db,
+		autoApprovalConfig: config.DefaultAutoApprovalConfig(),
+	}
 }
 
 // AgentReportRequest represents an agent report request
@@ -66,16 +71,35 @@ func (h *AgentHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 
 	if err == gorm.ErrRecordNotFound {
+		// Create labels first (needed for auto-approval check)
+		labels := make(model.LabelMap)
+		if req.Arch != "" {
+			labels["arch"] = req.Arch
+		}
+		if req.KernelVersion != "" {
+			labels["kernel_version"] = req.KernelVersion
+		}
+		if req.CPUModel != "" {
+			labels["cpu_model"] = req.CPUModel
+		}
+
+		// Determine status based on auto-approval rules
+		status := model.HostStatusPending // Default to pending
+		if h.autoApprovalConfig.ShouldAutoApprove(req.IPAddress, labels) {
+			status = model.HostStatusApproved
+		}
+
 		// Create new host
 		host = model.Host{
 			ID:        uuid.New(),
 			Hostname:  req.Hostname,
 			IPAddress: req.IPAddress,
 			Port:      22,
-			Status:    model.HostStatusPending, // Require approval
+			Status:    status,
 			OSType:    req.OSType,
 			OSVersion: req.OSVersion,
 			LastSeenAt: &now,
+			Labels:    labels,
 		}
 
 		// Set CPU cores if provided
@@ -90,18 +114,6 @@ func (h *AgentHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			host.MemoryGB = &memGB
 		}
 
-		// Create labels with additional info
-		host.Labels = make(model.LabelMap)
-		if req.Arch != "" {
-			host.Labels["arch"] = req.Arch
-		}
-		if req.KernelVersion != "" {
-			host.Labels["kernel_version"] = req.KernelVersion
-		}
-		if req.CPUModel != "" {
-			host.Labels["cpu_model"] = req.CPUModel
-		}
-
 		if err := h.db.Create(&host).Error; err != nil {
 			respondWithError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to create host")
 			return
@@ -110,6 +122,12 @@ func (h *AgentHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
 		return
 	} else {
+		// Check if host is rejected
+		if host.Status == model.HostStatusRejected {
+			respondWithError(w, http.StatusForbidden, "HOST_REJECTED", "Host has been rejected and cannot report")
+			return
+		}
+
 		// Update existing host
 		updates := map[string]interface{}{
 			"last_seen_at": now,

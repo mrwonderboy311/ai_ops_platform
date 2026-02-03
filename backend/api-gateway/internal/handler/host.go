@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/wangjialin/myops/pkg/model"
@@ -68,9 +69,21 @@ type HostFilter struct {
 func (h *HostHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
+	path := r.URL.Path
+
+	// Handle special approve/reject endpoints
+	if strings.HasSuffix(path, "/approve") && r.Method == http.MethodPatch {
+		h.approveHost(w, r)
+		return
+	}
+	if strings.HasSuffix(path, "/reject") && r.Method == http.MethodPatch {
+		h.rejectHost(w, r)
+		return
+	}
+
 	switch r.Method {
 	case http.MethodGet:
-		if r.URL.Path == "/api/v1/hosts" || r.URL.Path == "/api/v1/hosts/" {
+		if path == "/api/v1/hosts" || path == "/api/v1/hosts/" {
 			h.listHosts(w, r)
 		} else {
 			h.getHost(w, r)
@@ -81,8 +94,6 @@ func (h *HostHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.updateHost(w, r)
 	case http.MethodDelete:
 		h.deleteHost(w, r)
-	case http.MethodPatch:
-		h.approveHost(w, r)
 	default:
 		respondWithError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "Method not allowed")
 	}
@@ -396,6 +407,96 @@ func (h *HostHandler) approveHost(w http.ResponseWriter, r *http.Request) {
 		"status":      model.HostStatusApproved,
 		"approved_by": userID,
 		"approved_at": gorm.Expr("NOW()"),
+	}
+
+	if err := h.db.Model(&model.Host{}).Where("id = ?", id).Updates(updates).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Host not found")
+		} else {
+			respondWithError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Internal server error")
+		}
+		return
+	}
+
+	// Fetch updated host
+	var host model.Host
+	h.db.Preload("RegisteredByUser").Preload("ApprovedByUser").First(&host, "id = ?", id)
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"data":      host,
+		"requestId": generateRequestID(),
+	})
+}
+
+// RejectRequest represents a reject host request
+type RejectRequest struct {
+	Reason string `json:"reason"`
+}
+
+// rejectHost rejects a host registration
+func (h *HostHandler) rejectHost(w http.ResponseWriter, r *http.Request) {
+	// Extract ID from path
+	// Path format: /api/v1/hosts/{id}/reject
+	path := r.URL.Path
+	if len(path) < len("/api/v1/hosts//reject") {
+		respondWithError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request path")
+		return
+	}
+
+	// Extract ID between /api/v1/hosts/ and /reject
+	idStr := path[len("/api/v1/hosts/"):]
+	rejectIndex := len(idStr) - len("/reject")
+	if rejectIndex <= 0 {
+		respondWithError(w, http.StatusBadRequest, "INVALID_REQUEST", "Host ID is required")
+		return
+	}
+	idStr = idStr[:rejectIndex]
+
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "INVALID_ID", "Invalid host ID format")
+		return
+	}
+
+	// Parse request body for optional reason
+	var req RejectRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err.Error() != "EOF" {
+		respondWithError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
+		return
+	}
+
+	// Get user ID from context (set by auth middleware)
+	var userID uuid.UUID
+	if userIDVal := r.Context().Value("user_id"); userIDVal != nil {
+		if uid, ok := userIDVal.(string); ok {
+			userID, _ = uuid.Parse(uid)
+		}
+	}
+
+	if userID == (uuid.UUID{}) {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "User not authenticated")
+		return
+	}
+
+	// Update host status
+	updates := map[string]interface{}{
+		"status":      model.HostStatusRejected,
+		"approved_by": userID,
+		"approved_at": gorm.Expr("NOW()"),
+	}
+
+	// Add rejection reason if provided
+	if req.Reason != "" {
+		// Store reason in labels
+		var host model.Host
+		if err := h.db.Where("id = ?", id).First(&host).Error; err == nil {
+			if host.Labels == nil {
+				host.Labels = make(model.LabelMap)
+			}
+			host.Labels["rejection_reason"] = req.Reason
+			updates["labels"] = host.Labels
+		}
 	}
 
 	if err := h.db.Model(&model.Host{}).Where("id = ?", id).Updates(updates).Error; err != nil {
