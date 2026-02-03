@@ -18,6 +18,7 @@ var (
 	clusterMetricsHandler *ClusterMetricsHandler
 	workloadHandler     *WorkloadHandler
 	podLogsWSHandler     *PodLogsWebSocketHandler
+	podTerminalWSHandler *PodTerminalWebSocketHandler
 	alertHandler        *AlertHandler
 	auditHandler        *AuditHandler
 	performanceHandler  *PerformanceHandler
@@ -65,6 +66,11 @@ func RegisterWorkloadHandler(workloadH *WorkloadHandler) {
 // RegisterPodLogsWebSocketHandler registers the pod logs websocket handler
 func RegisterPodLogsWebSocketHandler(wsH *PodLogsWebSocketHandler) {
 	podLogsWSHandler = wsH
+}
+
+// RegisterPodTerminalWebSocketHandler registers the pod terminal websocket handler
+func RegisterPodTerminalWebSocketHandler(wsH *PodTerminalWebSocketHandler) {
+	podTerminalWSHandler = wsH
 }
 
 // RegisterAlertHandler registers the alert handler
@@ -279,6 +285,16 @@ func API(w http.ResponseWriter, r *http.Request) {
 		if path == "/api/v1/clusters/pod-logs/ws" && method == http.MethodGet {
 			if podLogsWSHandler != nil {
 				podLogsWSHandler.ServeHTTP(w, r)
+			} else {
+				respondWithError(w, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "WebSocket service not available")
+			}
+			return
+		}
+
+		// Websocket endpoint for pod terminal
+		if path == "/api/v1/clusters/pod-terminal/ws" && method == http.MethodGet {
+			if podTerminalWSHandler != nil {
+				podTerminalWSHandler.ServeHTTP(w, r)
 			} else {
 				respondWithError(w, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "WebSocket service not available")
 			}

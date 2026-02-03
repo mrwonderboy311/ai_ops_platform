@@ -12,10 +12,12 @@ import {
   ExclamationCircleOutlined,
   FileTextOutlined,
   PlayCircleOutlined,
+  CodeOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { workloadApi } from '../api/workload'
 import { StreamingLogs } from '../components/StreamingLogs'
+import { PodTerminal } from '../components/PodTerminal'
 import dayjs from 'dayjs'
 
 interface ContainerInfo {
@@ -73,6 +75,10 @@ export const PodDetailPage: React.FC = () => {
     logs: '',
   })
   const [streamingLogsModal, setStreamingLogsModal] = useState<{ visible: boolean; containerName: string }>({
+    visible: false,
+    containerName: '',
+  })
+  const [terminalModal, setTerminalModal] = useState<{ visible: boolean; containerName: string }>({
     visible: false,
     containerName: '',
   })
@@ -181,6 +187,13 @@ export const PodDetailPage: React.FC = () => {
       key: 'actions',
       render: (_: any, record: ContainerInfo) => (
         <Space>
+          <Button
+            size="small"
+            icon={<CodeOutlined />}
+            onClick={() => setTerminalModal({ visible: true, containerName: record.name })}
+          >
+            Terminal
+          </Button>
           <Button
             size="small"
             icon={<PlayCircleOutlined />}
@@ -402,6 +415,25 @@ export const PodDetailPage: React.FC = () => {
           containerName={streamingLogsModal.containerName}
           visible={streamingLogsModal.visible}
           onClose={() => setStreamingLogsModal({ visible: false, containerName: '' })}
+        />
+      </Modal>
+
+      {/* Terminal Modal */}
+      <Modal
+        title={`Terminal: ${pod.name}`}
+        open={terminalModal.visible}
+        onCancel={() => setTerminalModal({ visible: false, containerName: '' })}
+        footer={null}
+        width={1000}
+        style={{ top: 20 }}
+        styles={{ body: { height: 'calc(100vh - 200px)' } }}
+      >
+        <PodTerminal
+          clusterId={clusterId!}
+          namespace={namespace!}
+          podName={podName!}
+          visible={terminalModal.visible}
+          onClose={() => setTerminalModal({ visible: false, containerName: '' })}
         />
       </Modal>
     </div>

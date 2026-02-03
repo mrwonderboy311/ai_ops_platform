@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/remotecommand"
 )
 
 // ClusterClient represents a Kubernetes cluster client
@@ -458,6 +459,44 @@ func (c *ClusterClient) GetPodDetail(ctx context.Context, namespace, podName str
 		StartTime:         getTimePtr(pod.Status.StartTime),
 		QOSClass:          string(pod.Status.QOSClass),
 	}, nil
+}
+
+// ExecConfig holds configuration for pod exec
+type ExecConfig struct {
+	Namespace    string
+	PodName      string
+	Container    string
+	Command      []string
+	TTY          bool
+	Stdin        bool
+	Stdout       bool
+	Stderr       bool
+}
+
+// PodExec creates an interactive exec session in a pod container
+func (c *ClusterClient) PodExec(ctx context.Context, config *ExecConfig) (remotecommand.Executor, error) {
+	req := c.clientset.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(config.PodName).
+		Namespace(config.Namespace).
+		SubResource("exec").
+		Param("container", config.Container)
+
+	for _, cmd := range config.Command {
+		req.Param("command", cmd)
+	}
+
+	req.Param("stdin", fmt.Sprintf("%v", config.Stdin))
+	req.Param("stdout", fmt.Sprintf("%v", config.Stdout))
+	req.Param("stderr", fmt.Sprintf("%v", config.Stderr))
+	req.Param("tty", fmt.Sprintf("%v", config.TTY))
+
+	executor, err := remotecommand.NewSPDYExecutor(c.config, "POST", req.URL())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create executor: %w", err)
+	}
+
+	return executor, nil
 }
 
 // getContainerState returns the current state of a container
