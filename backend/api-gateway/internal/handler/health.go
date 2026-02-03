@@ -21,6 +21,7 @@ var (
 	auditHandler        *AuditHandler
 	performanceHandler  *PerformanceHandler
 	notificationHandler *NotificationHandler
+	userManagementHandler *UserManagementHandler
 )
 
 // RegisterHandlers registers the API handlers
@@ -78,6 +79,11 @@ func RegisterPerformanceHandler(perfH *PerformanceHandler) {
 // RegisterNotificationHandler registers the notification handler
 func RegisterNotificationHandler(notifH *NotificationHandler) {
 	notificationHandler = notifH
+}
+
+// RegisterUserManagementHandler registers the user management handler
+func RegisterUserManagementHandler(userMgmtH *UserManagementHandler) {
+	userManagementHandler = userMgmtH
 }
 
 // Health returns the health check response
@@ -415,6 +421,74 @@ func API(w http.ResponseWriter, r *http.Request) {
 			}
 		default:
 			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Notification operation not found")
+		}
+		return
+	}
+
+	// User management endpoints
+	if strings.HasPrefix(path, "/api/v1/users") && userManagementHandler != nil {
+		switch {
+		case path == "/api/v1/users" && method == http.MethodGet:
+			userManagementHandler.ListUsers(w, r)
+		case path == "/api/v1/users" && method == http.MethodPost:
+			userManagementHandler.CreateUser(w, r)
+		case path == "/api/v1/users/check-permission" && method == http.MethodGet:
+			userManagementHandler.CheckPermission(w, r)
+		case matchesPattern(path, "/api/v1/users/*/roles"):
+			if method == http.MethodGet {
+				userManagementHandler.GetUserRoles(w, r)
+			} else if method == http.MethodPost {
+				userManagementHandler.AssignRoleToUser(w, r)
+			} else if method == http.MethodDelete {
+				userManagementHandler.RemoveRoleFromUser(w, r)
+			} else {
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "User operation not found")
+			}
+		case matchesPattern(path, "/api/v1/users/*"):
+			if method == http.MethodGet {
+				userManagementHandler.GetUserByID(w, r)
+			} else if method == http.MethodPut || method == http.MethodPatch {
+				userManagementHandler.UpdateUser(w, r)
+			} else if method == http.MethodDelete {
+				userManagementHandler.DeleteUser(w, r)
+			} else {
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "User operation not found")
+			}
+		default:
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "User operation not found")
+		}
+		return
+	}
+
+	// Role management endpoints
+	if strings.HasPrefix(path, "/api/v1/roles") && userManagementHandler != nil {
+		switch {
+		case path == "/api/v1/roles" && method == http.MethodGet:
+			userManagementHandler.ListRoles(w, r)
+		case path == "/api/v1/roles" && method == http.MethodPost:
+			userManagementHandler.CreateRole(w, r)
+		case path == "/api/v1/roles/permissions" && method == http.MethodGet:
+			userManagementHandler.ListPermissions(w, r)
+		case matchesPattern(path, "/api/v1/roles/*/permissions"):
+			if method == http.MethodPost {
+				userManagementHandler.AssignPermissionToRole(w, r)
+			} else if method == http.MethodDelete {
+				userManagementHandler.RemovePermissionFromRole(w, r)
+			} else {
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Role operation not found")
+			}
+		case matchesPattern(path, "/api/v1/roles/*"):
+			if method == http.MethodGet {
+				userManagementHandler.GetRoleByID(w, r)
+			} else if method == http.MethodPut || method == http.MethodPatch {
+				userManagementHandler.UpdateRole(w, r)
+			} else if method == http.MethodDelete {
+				userManagementHandler.DeleteRole(w, r)
+			} else {
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Role operation not found")
+			}
+		default:
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Role operation not found")
 		}
 		return
 	}

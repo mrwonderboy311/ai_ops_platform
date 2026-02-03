@@ -96,6 +96,7 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	var auditHandler *handler.AuditHandler
 	var performanceHandler *handler.PerformanceHandler
 	var notificationHandler *handler.NotificationHandler
+	var userManagementHandler *handler.UserManagementHandler
 	if gormDB != nil {
 		hostHandler = handler.NewHostHandler(gormDB)
 		scanHandler = handler.NewScanHandler(gormDB)
@@ -111,6 +112,7 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 		auditHandler = handler.NewAuditHandler(gormDB)
 		performanceHandler = handler.NewPerformanceHandler(gormDB, logger)
 		notificationHandler = handler.NewNotificationHandler(gormDB, logger)
+		userManagementHandler = handler.NewUserManagementHandler(gormDB, logger)
 	}
 
 	// Register handlers
@@ -177,6 +179,11 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	// Register notification handler
 	if notificationHandler != nil {
 		handler.RegisterNotificationHandler(notificationHandler)
+	}
+
+	// Register user management handler
+	if userManagementHandler != nil {
+		handler.RegisterUserManagementHandler(userManagementHandler)
 	}
 
 	// Apply middleware chain

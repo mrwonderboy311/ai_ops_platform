@@ -18,6 +18,7 @@ import AlertListPage from './pages/AlertListPage'
 import AuditLogPage from './pages/AuditLogPage'
 import PerformanceDashboardPage from './pages/PerformanceDashboardPage'
 import NotificationCenterPage from './pages/NotificationCenterPage'
+import UserManagementPage from './pages/UserManagementPage'
 
 // Dashboard placeholder component
 function Dashboard() {
@@ -63,6 +64,7 @@ function Layout() {
         <Route path="/audit-logs" element={<AuditLogPage />} />
         <Route path="/performance" element={<PerformanceDashboardPage />} />
         <Route path="/notifications" element={<NotificationCenterPage />} />
+        <Route path="/users" element={<UserManagementPage />} />
         <Route path="/batch-tasks" element={<BatchTaskListPage />} />
         <Route path="/batch-tasks/:id" element={<BatchTaskDetailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
