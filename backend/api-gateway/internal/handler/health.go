@@ -16,6 +16,7 @@ var (
 	batchTaskHandler    *BatchTaskHandler
 	clusterHandler      *ClusterHandler
 	clusterMetricsHandler *ClusterMetricsHandler
+	workloadHandler     *WorkloadHandler
 )
 
 // RegisterHandlers registers the API handlers
@@ -48,6 +49,11 @@ func RegisterClusterHandler(clusterH *ClusterHandler) {
 // RegisterClusterMetricsHandler registers the cluster metrics handler
 func RegisterClusterMetricsHandler(metricsH *ClusterMetricsHandler) {
 	clusterMetricsHandler = metricsH
+}
+
+// RegisterWorkloadHandler registers the workload handler
+func RegisterWorkloadHandler(workloadH *WorkloadHandler) {
+	workloadHandler = workloadH
 }
 
 // Health returns the health check response
@@ -229,6 +235,30 @@ func API(w http.ResponseWriter, r *http.Request) {
 			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Cluster operation not found")
 		}
 		return
+	}
+
+	// Workload management endpoints
+	if strings.HasPrefix(path, "/api/v1/clusters") && workloadHandler != nil {
+		switch {
+		case matchesPattern(path, "/api/v1/clusters/*/namespaces") && method == http.MethodGet:
+			workloadHandler.ListNamespaces(w, r)
+			return
+		case matchesPattern(path, "/api/v1/clusters/*/namespaces/*/deployments") && method == http.MethodGet:
+			workloadHandler.ListDeployments(w, r)
+			return
+		case matchesPattern(path, "/api/v1/clusters/*/namespaces/*/pods") && method == http.MethodGet:
+			workloadHandler.ListPods(w, r)
+			return
+		case matchesPattern(path, "/api/v1/clusters/*/namespaces/*/pods/*/logs") && method == http.MethodGet:
+			workloadHandler.GetPodLogs(w, r)
+			return
+		case matchesPattern(path, "/api/v1/clusters/*/namespaces/*/pods/*") && method == http.MethodDelete:
+			workloadHandler.DeletePod(w, r)
+			return
+		case matchesPattern(path, "/api/v1/clusters/*/namespaces/*/services") && method == http.MethodGet:
+			workloadHandler.ListServices(w, r)
+			return
+		}
 	}
 
 	if strings.HasPrefix(path, "/api/v1/hosts") {

@@ -13,6 +13,7 @@ import BatchTaskDetailPage from './pages/BatchTaskDetailPage'
 import { ClusterListPage } from './pages/ClusterListPage'
 import ClusterDetailPage from './pages/ClusterDetailPage'
 import { ClusterMonitoringPage } from './pages/ClusterMonitoringPage'
+import WorkloadListPage from './pages/WorkloadListPage'
 
 // Dashboard placeholder component
 function Dashboard() {
@@ -53,6 +54,7 @@ function Layout() {
         <Route path="/clusters" element={<ClusterListPage />} />
         <Route path="/clusters/:id" element={<ClusterDetailPage />} />
         <Route path="/clusters/:id/monitoring" element={<ClusterMonitoringPage />} />
+        <Route path="/clusters/:id/workloads" element={<WorkloadListPage />} />
         <Route path="/batch-tasks" element={<BatchTaskListPage />} />
         <Route path="/batch-tasks/:id" element={<BatchTaskDetailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
