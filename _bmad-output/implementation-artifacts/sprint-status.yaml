@@ -51,13 +51,13 @@ development_status:
   epic-1-retrospective: optional
 
   # Epic 2: 主机发现与管理
-  epic-2: in-progress
+  epic-2: done
   2-1-host-data-model-and-api: done
   2-2-ssh-passive-scanning: done
   2-3-agent-development-and-active-reporting: done
   2-4-host-registration-and-approval: done
   2-5-frontend-host-list-page: done
-  2-6-frontend-host-detail-page: backlog
+  2-6-frontend-host-detail-page: done
   epic-2-retrospective: optional
 
   # Epic 3: 主机远程运维

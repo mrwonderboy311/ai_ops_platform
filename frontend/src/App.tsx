@@ -5,6 +5,7 @@ import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { PrivateRoute } from './components/PrivateRoute'
 import HostListPage from './pages/HostListPage'
+import HostDetailPage from './pages/HostDetailPage'
 
 // Dashboard placeholder component
 function Dashboard() {
@@ -41,6 +42,7 @@ function Layout() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/hosts" element={<HostListPage />} />
+        <Route path="/hosts/:id" element={<HostDetailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
