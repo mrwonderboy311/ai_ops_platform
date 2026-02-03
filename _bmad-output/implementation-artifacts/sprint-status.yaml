@@ -84,7 +84,7 @@ development_status:
   5-1-pod-list-and-detail-interface: done
   5-2-pod-log-stream-websocket: done
   5-3-pod-terminal-websocket: done
-  5-4-helm-repository-management: backlog
+  5-4-helm-repository-management: done
   5-5-helm-application-management-interface: backlog
   epic-5-retrospective: optional
 

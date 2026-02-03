@@ -19,6 +19,7 @@ var (
 	workloadHandler     *WorkloadHandler
 	podLogsWSHandler     *PodLogsWebSocketHandler
 	podTerminalWSHandler *PodTerminalWebSocketHandler
+	helmHandler         *HelmHandler
 	alertHandler        *AlertHandler
 	auditHandler        *AuditHandler
 	performanceHandler  *PerformanceHandler
@@ -71,6 +72,11 @@ func RegisterPodLogsWebSocketHandler(wsH *PodLogsWebSocketHandler) {
 // RegisterPodTerminalWebSocketHandler registers the pod terminal websocket handler
 func RegisterPodTerminalWebSocketHandler(wsH *PodTerminalWebSocketHandler) {
 	podTerminalWSHandler = wsH
+}
+
+// RegisterHelmHandler registers the Helm handler
+func RegisterHelmHandler(helmH *HelmHandler) {
+	helmHandler = helmH
 }
 
 // RegisterAlertHandler registers the alert handler
@@ -524,6 +530,33 @@ func API(w http.ResponseWriter, r *http.Request) {
 			}
 		default:
 			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Role operation not found")
+		}
+		return
+	}
+
+	// Helm repository endpoints
+	if strings.HasPrefix(path, "/api/v1/helm") && helmHandler != nil {
+		switch {
+		case path == "/api/v1/helm/repositories" && method == http.MethodGet:
+			helmHandler.ListHelmRepos(w, r)
+		case path == "/api/v1/helm/repositories" && method == http.MethodPost:
+			helmHandler.CreateHelmRepo(w, r)
+		case path == "/api/v1/helm/repositories/test" && method == http.MethodPost:
+			helmHandler.TestHelmRepo(w, r)
+		case matchesPattern(path, "/api/v1/helm/repositories/*/sync") && method == http.MethodPost:
+			helmHandler.SyncHelmRepo(w, r)
+		case matchesPattern(path, "/api/v1/helm/repositories/*"):
+			if method == http.MethodGet {
+				helmHandler.GetHelmRepo(w, r)
+			} else if method == http.MethodPut || method == http.MethodPatch {
+				helmHandler.UpdateHelmRepo(w, r)
+			} else if method == http.MethodDelete {
+				helmHandler.DeleteHelmRepo(w, r)
+			} else {
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Helm operation not found")
+			}
+		default:
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Helm operation not found")
 		}
 		return
 	}
