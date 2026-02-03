@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package myops.auth.v1;
+
+option go_package = "github.com/wangjialin/myops/pkg/proto/auth";
+
+import "google/api/annotations.proto";
+
+// AuthService provides authentication operations
+service AuthService {
+  // User registration
+  rpc Register(RegisterRequest) returns (RegisterResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/register"
+      body: "*"
+    };
+  }
+
+  // User login
+  rpc Login(LoginRequest) returns (LoginResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/login"
+      body: "*"
+    };
+  }
+
+  // Refresh token
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/refresh"
+      body: "*"
+    };
+  }
+
+  // LDAP login
+  rpc LdapLogin(LdapLoginRequest) returns (LdapLoginResponse) {
+    option (google.api.http) = {
+      post: "/api/v1/auth/ldap-login"
+      body: "*"
+    };
+  }
+}
+
+// Register request
+message RegisterRequest {
+  string username = 1;
+  string email = 2;
+  string password = 3;
+}
+
+// Register response
+message RegisterResponse {
+  User user = 1;
+}
+
+// Login request
+message LoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+// Login response
+message LoginResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  int32 expires_in = 3;
+  User user = 4;
+}
+
+// Refresh token request
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+// Refresh token response
+message RefreshTokenResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  int32 expires_in = 3;
+}
+
+// LDAP login request
+message LdapLoginRequest {
+  string username = 1;
+  string password = 2;
+}
+
+// LDAP login response
+message LdapLoginResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  int32 expires_in = 3;
+  User user = 4;
+}
+
+// User information
+message User {
+  string id = 1;
+  string username = 2;
+  string email = 3;
+}

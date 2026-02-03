@@ -1,0 +1,10 @@
+go 1.23.0
+
+use (
+	./ai-svc
+	./api-gateway
+	./host-svc
+	./k8s-svc
+	./obs-svc
+	./pkg
+)
