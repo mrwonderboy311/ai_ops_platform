@@ -1,0 +1,138 @@
+syntax = "proto3";
+
+package host.v1;
+
+option go_package = "github.com/wangjialin/myops/pkg/proto/host";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// Host service manages host inventory
+service HostService {
+  // GetHost retrieves a host by ID
+  rpc GetHost(GetHostRequest) returns (Host);
+
+  // ListHosts returns a paginated list of hosts
+  rpc ListHosts(ListHostsRequest) returns (ListHostsResponse);
+
+  // CreateHost creates a new host
+  rpc CreateHost(CreateHostRequest) returns (Host);
+
+  // UpdateHost updates an existing host
+  rpc UpdateHost(UpdateHostRequest) returns (Host);
+
+  // DeleteHost deletes a host
+  rpc DeleteHost(DeleteHostRequest) returns (google.protobuf.Empty);
+
+  // ApproveHost approves a pending host registration
+  rpc ApproveHost(ApproveHostRequest) returns (Host);
+}
+
+// Host represents a managed host/server
+message Host {
+  string id = 1;
+  string hostname = 2;
+  string ip_address = 3;
+  int32 port = 4;
+  string status = 5;
+  string os_type = 6;
+  string os_version = 7;
+  int32 cpu_cores = 8;
+  int32 memory_gb = 9;
+  int64 disk_gb = 10;
+  map<string, string> labels = 11;
+  repeated string tags = 12;
+  string cluster_id = 13;
+  string registered_by = 14;
+  string approved_by = 15;
+  google.protobuf.Timestamp approved_at = 16;
+  google.protobuf.Timestamp created_at = 17;
+  google.protobuf.Timestamp updated_at = 18;
+
+  // Eager loaded associations
+  UserSummary registered_by_user = 19;
+  UserSummary approved_by_user = 20;
+  ClusterSummary cluster = 21;
+}
+
+// UserSummary represents a simplified user reference
+message UserSummary {
+  string id = 1;
+  string username = 2;
+  string email = 3;
+}
+
+// ClusterSummary represents a simplified cluster reference
+message ClusterSummary {
+  string id = 1;
+  string name = 2;
+}
+
+// GetHostRequest
+message GetHostRequest {
+  string id = 1;
+}
+
+// ListHostsRequest
+message ListHostsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string status = 3;
+  string hostname = 4;
+  string ip_address = 5;
+  string registered_by = 6;
+  map<string, string> labels = 7;
+  repeated string tags = 8;
+  string sort_by = 9;
+  bool sort_desc = 10;
+}
+
+// ListHostsResponse
+message ListHostsResponse {
+  repeated Host hosts = 1;
+  int64 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// CreateHostRequest
+message CreateHostRequest {
+  string hostname = 1;
+  string ip_address = 2;
+  int32 port = 3;
+  string os_type = 4;
+  string os_version = 5;
+  int32 cpu_cores = 6;
+  int32 memory_gb = 7;
+  int64 disk_gb = 8;
+  map<string, string> labels = 9;
+  repeated string tags = 10;
+  string cluster_id = 11;
+  string registered_by = 12;
+}
+
+// UpdateHostRequest
+message UpdateHostRequest {
+  string id = 1;
+  string hostname = 2;
+  int32 port = 3;
+  string os_type = 4;
+  string os_version = 5;
+  int32 cpu_cores = 6;
+  int32 memory_gb = 7;
+  int64 disk_gb = 8;
+  map<string, string> labels = 9;
+  repeated string tags = 10;
+  string cluster_id = 11;
+}
+
+// DeleteHostRequest
+message DeleteHostRequest {
+  string id = 1;
+}
+
+// ApproveHostRequest
+message ApproveHostRequest {
+  string id = 1;
+  string approved_by = 2;
+}
