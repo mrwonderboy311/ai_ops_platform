@@ -63,6 +63,7 @@ type Host struct {
 	RegisteredBy *uuid.UUID    `gorm:"type:uuid" json:"registeredBy"`
 	ApprovedBy  *uuid.UUID     `gorm:"type:uuid" json:"approvedBy"`
 	ApprovedAt  *time.Time     `json:"approvedAt"`
+	LastSeenAt  *time.Time     `json:"lastSeenAt"`
 	CreatedAt   time.Time      `json:"createdAt"`
 	UpdatedAt   time.Time      `json:"updatedAt"`
 

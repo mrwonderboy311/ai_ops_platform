@@ -10,12 +10,14 @@ import (
 var (
 	hostHandler *HostHandler
 	scanHandler *ScanHandler
+	agentHandler *AgentHandler
 )
 
 // RegisterHandlers registers the API handlers
-func RegisterHandlers(hostH *HostHandler, scanH *ScanHandler) {
+func RegisterHandlers(hostH *HostHandler, scanH *ScanHandler, agentH *AgentHandler) {
 	hostHandler = hostH
 	scanHandler = scanH
+	agentHandler = agentH
 }
 
 // Health returns the health check response
@@ -34,6 +36,16 @@ func API(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 
 	// Route to appropriate handler
+	if strings.HasPrefix(path, "/api/v1/agent/report") {
+		// Agent reporting endpoint
+		if agentHandler != nil {
+			agentHandler.ServeHTTP(w, r)
+		} else {
+			respondWithError(w, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "Agent service not available")
+		}
+		return
+	}
+
 	if strings.HasPrefix(path, "/api/v1/hosts/scan-tasks/") {
 		// Scan task status query
 		if scanHandler != nil {

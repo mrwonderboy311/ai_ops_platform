@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lib/pq"
 	"github.com/wangjialin/myops/pkg/model"
 	"github.com/wangjialin/myops/pkg/ssh"
 	"gorm.io/gorm"
@@ -85,7 +84,7 @@ func (h *ScanHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Calculate estimated hosts
-	estimatedHosts, err := sshscanner.GetEstimatedHostCount(req.IPRange)
+	estimatedHosts, err := ssh.GetEstimatedHostCount(req.IPRange)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "INVALID_IP_RANGE", "Invalid IP range format")
 		return
@@ -94,17 +93,11 @@ func (h *ScanHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Create scan task
 	taskID := uuid.New()
 
-	// Convert []int to pq.Int64Array for database
-	portsArray := make(pq.Int64Array, len(req.Ports))
-	for i, p := range req.Ports {
-		portsArray[i] = int64(p)
-	}
-
 	task := &model.ScanTask{
 		ID:              taskID,
 		UserID:          userID,
 		IPRange:         req.IPRange,
-		Ports:           portsArray,
+		Ports:           req.Ports,
 		TimeoutSeconds:  req.TimeoutSeconds,
 		Status:          model.ScanTaskStatusRunning,
 		EstimatedHosts:  estimatedHosts * len(req.Ports),
