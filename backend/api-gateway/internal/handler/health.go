@@ -17,6 +17,7 @@ var (
 	clusterHandler      *ClusterHandler
 	clusterMetricsHandler *ClusterMetricsHandler
 	workloadHandler     *WorkloadHandler
+	alertHandler        *AlertHandler
 )
 
 // RegisterHandlers registers the API handlers
@@ -54,6 +55,11 @@ func RegisterClusterMetricsHandler(metricsH *ClusterMetricsHandler) {
 // RegisterWorkloadHandler registers the workload handler
 func RegisterWorkloadHandler(workloadH *WorkloadHandler) {
 	workloadHandler = workloadH
+}
+
+// RegisterAlertHandler registers the alert handler
+func RegisterAlertHandler(alertH *AlertHandler) {
+	alertHandler = alertH
 }
 
 // Health returns the health check response
@@ -267,6 +273,55 @@ func API(w http.ResponseWriter, r *http.Request) {
 			hostHandler.ServeHTTP(w, r)
 		} else {
 			respondWithError(w, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "Host service not available")
+		}
+		return
+	}
+
+	// Alert management endpoints
+	if strings.HasPrefix(path, "/api/v1/alerts") && alertHandler != nil {
+		switch {
+		case path == "/api/v1/alerts" && method == http.MethodGet:
+			alertHandler.ListAlerts(w, r)
+		case path == "/api/v1/alerts/statistics" && method == http.MethodGet:
+			alertHandler.GetAlertStatistics(w, r)
+		case matchesPattern(path, "/api/v1/alerts/*/silence") && method == http.MethodPost:
+			alertHandler.SilenceAlert(w, r)
+		default:
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Alert operation not found")
+		}
+		return
+	}
+
+	// Alert rules endpoints
+	if strings.HasPrefix(path, "/api/v1/alert-rules") && alertHandler != nil {
+		switch {
+		case path == "/api/v1/alert-rules" && method == http.MethodPost:
+			alertHandler.CreateAlertRule(w, r)
+		case path == "/api/v1/alert-rules" && method == http.MethodGet:
+			alertHandler.ListAlertRules(w, r)
+		case matchesPattern(path, "/api/v1/alert-rules/*"):
+			if method == http.MethodGet {
+				alertHandler.GetAlertRule(w, r)
+			} else if method == http.MethodPut || method == http.MethodPatch {
+				alertHandler.UpdateAlertRule(w, r)
+			} else if method == http.MethodDelete {
+				alertHandler.DeleteAlertRule(w, r)
+			} else {
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Alert rule operation not found")
+			}
+		default:
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Alert rule operation not found")
+		}
+		return
+	}
+
+	// Events endpoints
+	if strings.HasPrefix(path, "/api/v1/events") && alertHandler != nil {
+		switch {
+		case path == "/api/v1/events" && method == http.MethodGet:
+			alertHandler.ListEvents(w, r)
+		default:
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Event operation not found")
 		}
 		return
 	}

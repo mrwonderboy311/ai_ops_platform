@@ -81,7 +81,7 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	// Create services (pass nil for now, will be properly initialized in production)
 	authService := service.NewAuthService(userRepo, jwtManager, tokenRepo, ldapClient)
 
-	// Create host, scan, agent, SSH, file, process, batch task, cluster, cluster metrics and workload handlers (requires database)
+	// Create host, scan, agent, SSH, file, process, batch task, cluster, cluster metrics, workload and alert handlers (requires database)
 	var hostHandler *handler.HostHandler
 	var scanHandler *handler.ScanHandler
 	var agentHandler *handler.AgentHandler
@@ -92,6 +92,7 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	var clusterHandler *handler.ClusterHandler
 	var clusterMetricsHandler *handler.ClusterMetricsHandler
 	var workloadHandler *handler.WorkloadHandler
+	var alertHandler *handler.AlertHandler
 	if gormDB != nil {
 		hostHandler = handler.NewHostHandler(gormDB)
 		scanHandler = handler.NewScanHandler(gormDB)
@@ -103,6 +104,7 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 		clusterHandler = handler.NewClusterHandler(gormDB)
 		clusterMetricsHandler = handler.NewClusterMetricsHandler(gormDB)
 		workloadHandler = handler.NewWorkloadHandler(gormDB)
+		alertHandler = handler.NewAlertHandler(gormDB)
 	}
 
 	// Register handlers
@@ -149,6 +151,11 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	// Register workload handler
 	if workloadHandler != nil {
 		handler.RegisterWorkloadHandler(workloadHandler)
+	}
+
+	// Register alert handler
+	if alertHandler != nil {
+		handler.RegisterAlertHandler(alertHandler)
 	}
 
 	// Apply middleware chain
