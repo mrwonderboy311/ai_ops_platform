@@ -279,6 +279,9 @@ func API(w http.ResponseWriter, r *http.Request) {
 		case matchesPattern(path, "/api/v1/clusters/*/namespaces/*/pods") && method == http.MethodGet:
 			workloadHandler.ListPods(w, r)
 			return
+		case matchesPattern(path, "/api/v1/clusters/*/namespaces/*/pods/*/detail") && method == http.MethodGet:
+			workloadHandler.GetPodDetail(w, r)
+			return
 		case matchesPattern(path, "/api/v1/clusters/*/namespaces/*/pods/*/logs") && method == http.MethodGet:
 			workloadHandler.GetPodLogs(w, r)
 			return

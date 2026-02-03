@@ -100,7 +100,9 @@ export const WorkloadListPage: React.FC = () => {
       render: (name: string, record) => (
         <Space>
           <ContainerOutlined />
-          <span>{name}</span>
+          <a onClick={() => navigate(`/clusters/${clusterId}/namespaces/${namespace}/pods/${name}`)}>
+            {name}
+          </a>
           {record.ownerName && <Tag color="blue">{record.ownerType}/{record.ownerName}</Tag>}
         </Space>
       ),

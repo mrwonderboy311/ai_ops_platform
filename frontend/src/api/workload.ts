@@ -38,6 +38,14 @@ export const workloadApi = {
     return response.data.data
   },
 
+  // Get pod detail
+  getPodDetail: async (clusterId: string, namespace: string, podName: string): Promise<any> => {
+    const response = await axios.get<{ data: any }>(
+      `${API_BASE_URL}/api/v1/clusters/${clusterId}/namespaces/${namespace}/pods/${podName}/detail`
+    )
+    return response.data.data
+  },
+
   // Get services
   getServices: async (clusterId: string, namespace: string): Promise<K8sService[]> => {
     const response = await axios.get<ServicesResponse>(

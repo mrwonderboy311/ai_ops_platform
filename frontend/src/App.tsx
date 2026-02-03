@@ -14,6 +14,7 @@ import { ClusterListPage } from './pages/ClusterListPage'
 import ClusterDetailPage from './pages/ClusterDetailPage'
 import { ClusterMonitoringPage } from './pages/ClusterMonitoringPage'
 import WorkloadListPage from './pages/WorkloadListPage'
+import PodDetailPage from './pages/PodDetailPage'
 import AlertListPage from './pages/AlertListPage'
 import AuditLogPage from './pages/AuditLogPage'
 import PerformanceDashboardPage from './pages/PerformanceDashboardPage'
@@ -60,6 +61,7 @@ function Layout() {
         <Route path="/clusters/:id" element={<ClusterDetailPage />} />
         <Route path="/clusters/:id/monitoring" element={<ClusterMonitoringPage />} />
         <Route path="/clusters/:id/workloads" element={<WorkloadListPage />} />
+        <Route path="/clusters/:id/namespaces/:namespace/pods/:podName" element={<PodDetailPage />} />
         <Route path="/alerts" element={<AlertListPage />} />
         <Route path="/audit-logs" element={<AuditLogPage />} />
         <Route path="/performance" element={<PerformanceDashboardPage />} />

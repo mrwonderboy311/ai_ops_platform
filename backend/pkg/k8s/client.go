@@ -348,6 +348,142 @@ func (c *ClusterClient) DeletePod(ctx context.Context, namespace, podName string
 	return c.clientset.CoreV1().Pods(namespace).Delete(ctx, podName, metav1.DeleteOptions{})
 }
 
+// GetPodDetail retrieves detailed information about a specific pod
+func (c *ClusterClient) GetPodDetail(ctx context.Context, namespace, podName string) (*PodDetailInfo, error) {
+	pod, err := c.clientset.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pod: %w", err)
+	}
+
+	// Get owner references
+	var ownerType, ownerName string
+	if len(pod.OwnerReferences) > 0 {
+		ownerType = string(pod.OwnerReferences[0].Kind)
+		ownerName = pod.OwnerReferences[0].Name
+	}
+
+	// Process containers
+	containers := make([]ContainerInfo, len(pod.Spec.Containers))
+	for i, c := range pod.Spec.Containers {
+		// Find matching status
+		var status *v1.ContainerStatus
+		for j, cs := range pod.Status.ContainerStatuses {
+			if cs.Name == c.Name {
+				status = &pod.Status.ContainerStatuses[j]
+				break
+			}
+		}
+
+		container := ContainerInfo{
+			Name:  c.Name,
+			Image: c.Image,
+			ImagePullPolicy: string(c.ImagePullPolicy),
+		}
+
+		if status != nil {
+			container.Ready = status.Ready
+			container.RestartCount = status.RestartCount
+			container.State = getContainerState(status)
+			container.Ready = status.Ready
+		}
+
+		// Add resource requests
+		if c.Resources.Requests != nil {
+			container.CPURequest = c.Resources.Requests.Cpu().String()
+			container.MemoryRequest = c.Resources.Requests.Memory().String()
+		}
+		if c.Resources.Limits != nil {
+			container.CPULimit = c.Resources.Limits.Cpu().String()
+			container.MemoryLimit = c.Resources.Limits.Memory().String()
+		}
+
+		containers[i] = container
+	}
+
+	// Get events
+	events, err := c.clientset.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{
+		FieldSelector: fmt.Sprintf("involvedObject.name=%s,involvedObject.kind=Pod", podName),
+	})
+	podEvents := make([]EventInfo, 0)
+	if err == nil {
+		for _, e := range events.Items {
+			podEvents = append(podEvents, EventInfo{
+				Type:      e.Type,
+				Reason:    e.Reason,
+				Message:   e.Message,
+				FirstSeen: e.FirstTimestamp.Time,
+				LastSeen:  e.LastTimestamp.Time,
+				Count:     e.Count,
+			})
+		}
+	}
+
+	return &PodDetailInfo{
+		Name:              pod.Name,
+		Namespace:         pod.Namespace,
+		Status:            string(pod.Status.Phase),
+		Phase:             string(pod.Status.Phase),
+		PodIP:             pod.Status.PodIP,
+		HostIP:            pod.Status.HostIP,
+		NodeName:          pod.Spec.NodeName,
+		Ready:             isPodReady(pod),
+		RestartCount:      getPodRestartCount(pod),
+		OwnerType:         ownerType,
+		OwnerName:         ownerName,
+		Containers:        containers,
+		Events:            podEvents,
+		Labels:            pod.Labels,
+		Annotations:       pod.Annotations,
+		ServiceAccount:    pod.Spec.ServiceAccountName,
+		RestartPolicy:     string(pod.Spec.RestartPolicy),
+		DNSPolicy:         string(pod.Spec.DNSPolicy),
+		CreatedAt:         pod.CreationTimestamp.Time,
+		StartTime:         getTimePtr(pod.Status.StartTime),
+		QOSClass:          string(pod.Status.QOSClass),
+	}, nil
+}
+
+// getContainerState returns the current state of a container
+func getContainerState(status *v1.ContainerStatus) string {
+	if status.State.Running != nil {
+		return "Running"
+	}
+	if status.State.Waiting != nil {
+		return "Waiting: " + status.State.Waiting.Reason
+	}
+	if status.State.Terminated != nil {
+		return "Terminated: " + status.State.Terminated.Reason
+	}
+	return "Unknown"
+}
+
+// isPodReady checks if all containers in the pod are ready
+func isPodReady(pod *v1.Pod) bool {
+	for _, cs := range pod.Status.ContainerStatuses {
+		if !cs.Ready {
+			return false
+		}
+	}
+	return len(pod.Status.ContainerStatuses) > 0
+}
+
+// getPodRestartCount returns total restart count for all containers
+func getPodRestartCount(pod *v1.Pod) int32 {
+	var count int32
+	for _, cs := range pod.Status.ContainerStatuses {
+		count += cs.RestartCount
+	}
+	return count
+}
+
+// getTimePtr converts a metav1.Time to *time.Time
+func getTimePtr(t *metav1.Time) *time.Time {
+	if t == nil {
+		return nil
+	}
+	return &t.Time
+}
+
 // Helper types and functions
 
 type ConnectionInfo struct {
@@ -426,6 +562,52 @@ type ServicePort struct {
 	Port     int32  `json:"port"`
 	Protocol string `json:"protocol"`
 	NodePort int32  `json:"nodePort,omitempty"`
+}
+
+type PodDetailInfo struct {
+	Name           string            `json:"name"`
+	Namespace      string            `json:"namespace"`
+	Status         string            `json:"status"`
+	Phase          string            `json:"phase"`
+	PodIP          string            `json:"podIp"`
+	HostIP         string            `json:"hostIp"`
+	NodeName       string            `json:"nodeName"`
+	Ready          bool              `json:"ready"`
+	RestartCount   int32             `json:"restartCount"`
+	OwnerType      string            `json:"ownerType,omitempty"`
+	OwnerName      string            `json:"ownerName,omitempty"`
+	Containers     []ContainerInfo   `json:"containers"`
+	Events         []EventInfo       `json:"events"`
+	Labels         map[string]string `json:"labels"`
+	Annotations    map[string]string `json:"annotations"`
+	ServiceAccount string            `json:"serviceAccount"`
+	RestartPolicy  string            `json:"restartPolicy"`
+	DNSPolicy      string            `json:"dnsPolicy"`
+	CreatedAt      time.Time         `json:"createdAt"`
+	StartTime      *time.Time        `json:"startTime,omitempty"`
+	QOSClass       string            `json:"qosClass"`
+}
+
+type ContainerInfo struct {
+	Name           string `json:"name"`
+	Image          string `json:"image"`
+	ImagePullPolicy string `json:"imagePullPolicy"`
+	Ready          bool   `json:"ready"`
+	RestartCount   int32  `json:"restartCount"`
+	State          string `json:"state"`
+	CPURequest     string `json:"cpuRequest,omitempty"`
+	MemoryRequest  string `json:"memoryRequest,omitempty"`
+	CPULimit       string `json:"cpuLimit,omitempty"`
+	MemoryLimit    string `json:"memoryLimit,omitempty"`
+}
+
+type EventInfo struct {
+	Type      string    `json:"type"`
+	Reason    string    `json:"reason"`
+	Message   string    `json:"message"`
+	FirstSeen time.Time `json:"firstSeen"`
+	LastSeen  time.Time `json:"lastSeen"`
+	Count     int32     `json:"count"`
 }
 
 func getNodeAddress(node *v1.Node, addressType string) string {

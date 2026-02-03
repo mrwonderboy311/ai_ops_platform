@@ -429,6 +429,72 @@ func (h *WorkloadHandler) DeletePod(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetPodDetail handles pod detail requests
+func (h *WorkloadHandler) GetPodDetail(w http.ResponseWriter, r *http.Request) {
+	// Get cluster ID, namespace, and pod name from URL path
+	pathParts := splitPath(r.URL.Path)
+	if len(pathParts) < 7 || pathParts[6] != "detail" {
+		respondWithError(w, http.StatusBadRequest, "INVALID_PATH", "Invalid URL path")
+		return
+	}
+
+	clusterID, err := uuid.Parse(pathParts[3])
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "INVALID_CLUSTER_ID", "Invalid cluster ID")
+		return
+	}
+
+	namespace := pathParts[5]
+	podName := pathParts[7] // Skip "detail" and get pod name
+
+	// Get user ID from context
+	var userID uuid.UUID
+	if userIDVal := r.Context().Value("user_id"); userIDVal != nil {
+		if uid, ok := userIDVal.(string); ok {
+			userID, _ = uuid.Parse(uid)
+		}
+	}
+
+	if userID == (uuid.UUID{}) {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "User not authenticated")
+		return
+	}
+
+	// Verify cluster ownership
+	var cluster model.K8sCluster
+	if err := h.db.Where("id = ? AND user_id = ?", clusterID, userID).First(&cluster).Error; err != nil {
+		respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Cluster not found")
+		return
+	}
+
+	// Create cluster client
+	config := &k8s.ClusterConfig{
+		Kubeconfig: []byte(cluster.Kubeconfig),
+		Endpoint:   cluster.Endpoint,
+	}
+
+	client, err := k8s.NewClusterClient(config)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "CLIENT_ERROR", "Failed to create cluster client")
+		return
+	}
+	defer client.Close()
+
+	// Get pod detail
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	podDetail, err := client.GetPodDetail(ctx, namespace, podName)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "FETCH_ERROR", "Failed to fetch pod details")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]interface{}{
+		"data": podDetail,
+	})
+}
+
 // Helper functions for Kubernetes operations
 
 func getDeployments(ctx context.Context, client *k8s.ClusterClient, namespace string) ([]map[string]interface{}, error) {
