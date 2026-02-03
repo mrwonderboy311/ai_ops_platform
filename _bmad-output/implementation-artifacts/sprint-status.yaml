@@ -89,7 +89,7 @@ development_status:
   epic-5-retrospective: optional
 
   # Epic 6: 可观测性数据采集
-  epic-6: backlog
+  epic-6: in-progress
   6-1-opentelemetry-collector-deployment: backlog
   6-2-prometheus-integration: backlog
   6-3-loki-integration: backlog

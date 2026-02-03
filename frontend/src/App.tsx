@@ -17,11 +17,17 @@ import WorkloadListPage from './pages/WorkloadListPage'
 import PodDetailPage from './pages/PodDetailPage'
 import { HelmRepositoryPage } from './pages/HelmRepositoryPage'
 import { HelmApplicationPage } from './pages/HelmApplicationPage'
+import { OtelCollectorPage } from './pages/OtelCollectorPage'
+import { PrometheusDataSourcePage } from './pages/PrometheusDataSourcePage'
+import { PrometheusAlertRulesPage } from './pages/PrometheusAlertRulesPage'
+import { GrafanaInstancesPage } from './pages/GrafanaInstancesPage'
+import { AnomalyDetectionPage } from './pages/AnomalyDetectionPage'
 import AlertListPage from './pages/AlertListPage'
 import AuditLogPage from './pages/AuditLogPage'
 import PerformanceDashboardPage from './pages/PerformanceDashboardPage'
 import NotificationCenterPage from './pages/NotificationCenterPage'
 import UserManagementPage from './pages/UserManagementPage'
+import { RolesPage } from './pages/RolesPage'
 
 // Dashboard placeholder component
 function Dashboard() {
@@ -66,11 +72,17 @@ function Layout() {
         <Route path="/clusters/:id/namespaces/:namespace/pods/:podName" element={<PodDetailPage />} />
         <Route path="/helm/repositories" element={<HelmRepositoryPage />} />
         <Route path="/helm/applications" element={<HelmApplicationPage />} />
+        <Route path="/otel/collectors" element={<OtelCollectorPage />} />
+        <Route path="/prometheus/datasources" element={<PrometheusDataSourcePage />} />
+        <Route path="/prometheus/alert-rules" element={<PrometheusAlertRulesPage />} />
+        <Route path="/grafana/instances" element={<GrafanaInstancesPage />} />
+        <Route path="/ai/anomaly-detection" element={<AnomalyDetectionPage />} />
         <Route path="/alerts" element={<AlertListPage />} />
         <Route path="/audit-logs" element={<AuditLogPage />} />
         <Route path="/performance" element={<PerformanceDashboardPage />} />
         <Route path="/notifications" element={<NotificationCenterPage />} />
         <Route path="/users" element={<UserManagementPage />} />
+        <Route path="/roles" element={<RolesPage />} />
         <Route path="/batch-tasks" element={<BatchTaskListPage />} />
         <Route path="/batch-tasks/:id" element={<BatchTaskDetailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -20,11 +20,16 @@ var (
 	podLogsWSHandler     *PodLogsWebSocketHandler
 	podTerminalWSHandler *PodTerminalWebSocketHandler
 	helmHandler         *HelmHandler
+	otelHandler         *OtelHandler
+	prometheusHandler   *PrometheusHandler
+	grafanaHandler      *GrafanaHandler
+	aiAnalysisHandler    *AIAnalysisHandler
 	alertHandler        *AlertHandler
 	auditHandler        *AuditHandler
 	performanceHandler  *PerformanceHandler
 	notificationHandler *NotificationHandler
 	userManagementHandler *UserManagementHandler
+	rbacHandler         *RBACHandler
 )
 
 // RegisterHandlers registers the API handlers
@@ -79,6 +84,26 @@ func RegisterHelmHandler(helmH *HelmHandler) {
 	helmHandler = helmH
 }
 
+// RegisterOtelHandler registers the OpenTelemetry handler
+func RegisterOtelHandler(otelH *OtelHandler) {
+	otelHandler = otelH
+}
+
+// RegisterPrometheusHandler registers the Prometheus handler
+func RegisterPrometheusHandler(promH *PrometheusHandler) {
+	prometheusHandler = promH
+}
+
+// RegisterGrafanaHandler registers the Grafana handler
+func RegisterGrafanaHandler(grafanaH *GrafanaHandler) {
+	grafanaHandler = grafanaH
+}
+
+// RegisterAIAnalysisHandler registers the AI analysis handler
+func RegisterAIAnalysisHandler(aiH *AIAnalysisHandler) {
+	aiAnalysisHandler = aiH
+}
+
 // RegisterAlertHandler registers the alert handler
 func RegisterAlertHandler(alertH *AlertHandler) {
 	alertHandler = alertH
@@ -102,6 +127,11 @@ func RegisterNotificationHandler(notifH *NotificationHandler) {
 // RegisterUserManagementHandler registers the user management handler
 func RegisterUserManagementHandler(userMgmtH *UserManagementHandler) {
 	userManagementHandler = userMgmtH
+}
+
+// RegisterRBACHandler registers the RBAC handler
+func RegisterRBACHandler(rbacH *RBACHandler) {
+	rbacHandler = rbacH
 }
 
 // Health returns the health check response
@@ -592,6 +622,365 @@ func API(w http.ResponseWriter, r *http.Request) {
 			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Helm operation not found")
 		}
 		return
+	}
+
+	// OpenTelemetry collector endpoints
+	if strings.HasPrefix(path, "/api/v1/otel") && otelHandler != nil {
+		switch {
+		case path == "/api/v1/otel/collectors" && method == http.MethodGet:
+			otelHandler.ListCollectors(w, r)
+		case path == "/api/v1/otel/collectors" && method == http.MethodPost:
+			otelHandler.CreateCollector(w, r)
+		case matchesPattern(path, "/api/v1/otel/collectors/*/status") && method == http.MethodGet:
+			otelHandler.GetCollectorStatus(w, r)
+		case matchesPattern(path, "/api/v1/otel/collectors/*/start") && method == http.MethodPost:
+			otelHandler.StartCollector(w, r)
+		case matchesPattern(path, "/api/v1/otel/collectors/*/stop") && method == http.MethodPost:
+			otelHandler.StopCollector(w, r)
+		case matchesPattern(path, "/api/v1/otel/collectors/*/restart") && method == http.MethodPost:
+			otelHandler.RestartCollector(w, r)
+		case matchesPattern(path, "/api/v1/otel/collectors/*"):
+			if method == http.MethodGet {
+				otelHandler.GetCollector(w, r)
+			} else if method == http.MethodPut || method == http.MethodPatch {
+				otelHandler.UpdateCollector(w, r)
+			} else if method == http.MethodDelete {
+				otelHandler.DeleteCollector(w, r)
+			} else {
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "OTel operation not found")
+			}
+		default:
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "OTel operation not found")
+		}
+		return
+	}
+
+	// Prometheus data source endpoints
+	if strings.HasPrefix(path, "/api/v1/prometheus") && prometheusHandler != nil {
+		// Query endpoints
+		if matchesPattern(path, "/api/v1/prometheus/datasources/*/query") && method == http.MethodPost {
+			prometheusHandler.ExecuteQuery(w, r)
+			return
+		}
+		// Test connection endpoint
+		if path == "/api/v1/prometheus/datasources/test" && method == http.MethodPost {
+			prometheusHandler.TestDataSource(w, r)
+			return
+		}
+		// Alert rules endpoints
+		if strings.HasPrefix(path, "/api/v1/prometheus/alert-rules") {
+			switch {
+			case path == "/api/v1/prometheus/alert-rules" && method == http.MethodGet:
+				prometheusHandler.ListAlertRules(w, r)
+			case path == "/api/v1/prometheus/alert-rules" && method == http.MethodPost:
+				prometheusHandler.CreateAlertRule(w, r)
+			case matchesPattern(path, "/api/v1/prometheus/alert-rules/*"):
+				if method == http.MethodGet {
+					prometheusHandler.GetAlertRule(w, r)
+				} else if method == http.MethodPut || method == http.MethodPatch {
+					prometheusHandler.UpdateAlertRule(w, r)
+				} else if method == http.MethodDelete {
+					prometheusHandler.DeleteAlertRule(w, r)
+				} else {
+					respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Alert rule operation not found")
+				}
+			default:
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Alert rule operation not found")
+			}
+			return
+		}
+		// Dashboard endpoints
+		if strings.HasPrefix(path, "/api/v1/prometheus/dashboards") {
+			switch {
+			case path == "/api/v1/prometheus/dashboards" && method == http.MethodGet:
+				prometheusHandler.ListDashboards(w, r)
+			case path == "/api/v1/prometheus/dashboards" && method == http.MethodPost:
+				prometheusHandler.CreateDashboard(w, r)
+			case matchesPattern(path, "/api/v1/prometheus/dashboards/*"):
+				if method == http.MethodGet {
+					prometheusHandler.GetDashboard(w, r)
+				} else if method == http.MethodPut || method == http.MethodPatch {
+					prometheusHandler.UpdateDashboard(w, r)
+				} else if method == http.MethodDelete {
+					prometheusHandler.DeleteDashboard(w, r)
+				} else {
+					respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Dashboard operation not found")
+				}
+			default:
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Dashboard operation not found")
+			}
+			return
+		}
+		// Data source endpoints
+		switch {
+		case path == "/api/v1/prometheus/datasources" && method == http.MethodGet:
+			prometheusHandler.ListDataSources(w, r)
+		case path == "/api/v1/prometheus/datasources" && method == http.MethodPost:
+			prometheusHandler.CreateDataSource(w, r)
+		case matchesPattern(path, "/api/v1/prometheus/datasources/*"):
+			if method == http.MethodGet {
+				prometheusHandler.GetDataSource(w, r)
+			} else if method == http.MethodPut || method == http.MethodPatch {
+				prometheusHandler.UpdateDataSource(w, r)
+			} else if method == http.MethodDelete {
+				prometheusHandler.DeleteDataSource(w, r)
+			} else {
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Data source operation not found")
+			}
+		default:
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Prometheus operation not found")
+		}
+		return
+	}
+
+	// Grafana instance endpoints
+	if strings.HasPrefix(path, "/api/v1/grafana") && grafanaHandler != nil {
+		// Sync endpoint
+		if matchesPattern(path, "/api/v1/grafana/instances/*/sync") && method == http.MethodPost {
+			grafanaHandler.SyncInstance(w, r)
+			return
+		}
+		// Test endpoint
+		if path == "/api/v1/grafana/instances/test" && method == http.MethodPost {
+			grafanaHandler.TestInstance(w, r)
+			return
+		}
+		// Dashboard endpoints
+		if strings.HasPrefix(path, "/api/v1/grafana/dashboards") {
+			switch {
+			case path == "/api/v1/grafana/dashboards" && method == http.MethodGet:
+				grafanaHandler.ListDashboards(w, r)
+			case matchesPattern(path, "/api/v1/grafana/dashboards/*"):
+				if method == http.MethodGet {
+					grafanaHandler.GetDashboard(w, r)
+				} else {
+					respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Dashboard operation not found")
+				}
+			default:
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Dashboard operation not found")
+			}
+			return
+		}
+		// Data source endpoints
+		if strings.HasPrefix(path, "/api/v1/grafana/datasources") {
+			switch {
+			case path == "/api/v1/grafana/datasources" && method == http.MethodGet:
+				grafanaHandler.ListDataSources(w, r)
+			case matchesPattern(path, "/api/v1/grafana/datasources/*"):
+				if method == http.MethodGet {
+					grafanaHandler.GetDataSource(w, r)
+				} else {
+					respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Data source operation not found")
+				}
+			default:
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Data source operation not found")
+			}
+			return
+		}
+		// Folder endpoints
+		if strings.HasPrefix(path, "/api/v1/grafana/folders") {
+			switch {
+			case path == "/api/v1/grafana/folders" && method == http.MethodGet:
+				grafanaHandler.ListFolders(w, r)
+			case matchesPattern(path, "/api/v1/grafana/folders/*"):
+				if method == http.MethodGet {
+					grafanaHandler.GetFolder(w, r)
+				} else {
+					respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Folder operation not found")
+				}
+			default:
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Folder operation not found")
+			}
+			return
+		}
+		// Instance endpoints
+		switch {
+		case path == "/api/v1/grafana/instances" && method == http.MethodGet:
+			grafanaHandler.ListInstances(w, r)
+		case path == "/api/v1/grafana/instances" && method == http.MethodPost:
+			grafanaHandler.CreateInstance(w, r)
+		case matchesPattern(path, "/api/v1/grafana/instances/*"):
+			if method == http.MethodGet {
+				grafanaHandler.GetInstance(w, r)
+			} else if method == http.MethodPut || method == http.MethodPatch {
+				grafanaHandler.UpdateInstance(w, r)
+			} else if method == http.MethodDelete {
+				grafanaHandler.DeleteInstance(w, r)
+			} else {
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Instance operation not found")
+			}
+		default:
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Grafana operation not found")
+		}
+		return
+	}
+
+	// AI Analysis endpoints
+	if strings.HasPrefix(path, "/api/v1/ai") && aiAnalysisHandler != nil {
+		// Anomaly detection endpoints
+		if strings.HasPrefix(path, "/api/v1/ai/anomaly-events") {
+			switch {
+			case path == "/api/v1/ai/anomaly-events" && method == http.MethodGet:
+				aiAnalysisHandler.ListAnomalyEvents(w, r)
+			default:
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Anomaly event operation not found")
+			}
+			return
+		}
+		// Anomaly rules endpoints
+		if strings.HasPrefix(path, "/api/v1/ai/anomaly-rules") {
+			switch {
+			case path == "/api/v1/ai/anomaly-rules" && method == http.MethodGet:
+				aiAnalysisHandler.ListAnomalyRules(w, r)
+			case path == "/api/v1/ai/anomaly-rules" && method == http.MethodPost:
+				aiAnalysisHandler.CreateAnomalyRule(w, r)
+			case path == "/api/v1/ai/anomaly-rules/execute" && method == http.MethodPost:
+				aiAnalysisHandler.ExecuteAnomalyDetection(w, r)
+			case matchesPattern(path, "/api/v1/ai/anomaly-rules/*"):
+				if method == http.MethodGet {
+					aiAnalysisHandler.GetAnomalyRule(w, r)
+				} else if method == http.MethodPut || method == http.MethodPatch {
+					aiAnalysisHandler.UpdateAnomalyRule(w, r)
+				} else if method == http.MethodDelete {
+					aiAnalysisHandler.DeleteAnomalyRule(w, r)
+				} else {
+					respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Anomaly rule operation not found")
+				}
+			default:
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Anomaly rule operation not found")
+			}
+			return
+		}
+		// LLM conversations endpoints
+		if strings.HasPrefix(path, "/api/v1/ai/llm/conversations") {
+			switch {
+			case path == "/api/v1/ai/llm/conversations" && method == http.MethodGet:
+				aiAnalysisHandler.ListLLMConversations(w, r)
+			case path == "/api/v1/ai/llm/conversations" && method == http.MethodPost:
+				aiAnalysisHandler.CreateLLMConversation(w, r)
+			case matchesPattern(path, "/api/v1/ai/llm/conversations/*"):
+				if method == http.MethodGet {
+					aiAnalysisHandler.GetLLMConversation(w, r)
+				} else if method == http.MethodDelete {
+					aiAnalysisHandler.DeleteLLMConversation(w, r)
+				} else {
+					respondWithError(w, http.StatusNotFound, "NOT_FOUND", "LLM conversation operation not found")
+				}
+			default:
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "LLM conversation operation not found")
+			}
+			return
+		}
+		// LLM message endpoints
+		if matchesPattern(path, "/api/v1/ai/llm/conversations/*/messages") && method == http.MethodPost {
+			aiAnalysisHandler.SendLLMMessage(w, r)
+			return
+		}
+	}
+
+	// RBAC endpoints
+	if strings.HasPrefix(path, "/api/v1/rbac") && rbacHandler != nil {
+		// Current user endpoints
+		if path == "/api/v1/rbac/me" && method == http.MethodGet {
+			rbacHandler.GetCurrentUser(w, r)
+			return
+		}
+		if path == "/api/v1/rbac/me/check-permissions" && method == http.MethodPost {
+			rbacHandler.BatchCheckPermissions(w, r)
+			return
+		}
+		// Permissions endpoints
+		if strings.HasPrefix(path, "/api/v1/rbac/permissions") {
+			switch {
+			case path == "/api/v1/rbac/permissions" && method == http.MethodGet:
+				rbacHandler.ListPermissions(w, r)
+			case path == "/api/v1/rbac/permissions" && method == http.MethodPost:
+				rbacHandler.CreatePermission(w, r)
+			case matchesPattern(path, "/api/v1/rbac/permissions/*"):
+				if method == http.MethodGet {
+					rbacHandler.GetPermission(w, r)
+				} else if method == http.MethodPut || method == http.MethodPatch {
+					rbacHandler.UpdatePermission(w, r)
+				} else if method == http.MethodDelete {
+					rbacHandler.DeletePermission(w, r)
+				} else {
+					respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Permission operation not found")
+				}
+			default:
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Permission operation not found")
+			}
+			return
+		}
+		// Roles endpoints
+		if strings.HasPrefix(path, "/api/v1/rbac/roles") {
+			switch {
+			case path == "/api/v1/rbac/roles" && method == http.MethodGet:
+				rbacHandler.ListRoles(w, r)
+			case path == "/api/v1/rbac/roles" && method == http.MethodPost:
+				rbacHandler.CreateRole(w, r)
+			case path == "/api/v1/rbac/roles/seed" && method == http.MethodPost:
+				rbacHandler.SeedDefaultRoles(w, r)
+			case matchesPattern(path, "/api/v1/rbac/roles/*/permissions") && method == http.MethodGet:
+				rbacHandler.ListRolePermissions(w, r)
+			case matchesPattern(path, "/api/v1/rbac/roles/*/permissions") && method == http.MethodPost:
+				rbacHandler.AssignRolePermissions(w, r)
+			case matchesPattern(path, "/api/v1/rbac/roles/*/permissions/*") && method == http.MethodDelete:
+				rbacHandler.RemoveRolePermission(w, r)
+			case matchesPattern(path, "/api/v1/rbac/roles/*"):
+				if method == http.MethodGet {
+					rbacHandler.GetRole(w, r)
+				} else if method == http.MethodPut || method == http.MethodPatch {
+					rbacHandler.UpdateRole(w, r)
+				} else if method == http.MethodDelete {
+					rbacHandler.DeleteRole(w, r)
+				} else {
+					respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Role operation not found")
+				}
+			default:
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Role operation not found")
+			}
+			return
+		}
+		// User roles endpoints
+		if strings.HasPrefix(path, "/api/v1/rbac/users") {
+			switch {
+			case matchesPattern(path, "/api/v1/rbac/users/*/roles") && method == http.MethodGet:
+				rbacHandler.ListUserRoles(w, r)
+			case matchesPattern(path, "/api/v1/rbac/users/*/roles") && method == http.MethodPost:
+				rbacHandler.AssignUserRole(w, r)
+			case matchesPattern(path, "/api/v1/rbac/users/*/roles") && method == http.MethodDelete:
+				rbacHandler.RemoveUserRole(w, r)
+			case matchesPattern(path, "/api/v1/rbac/users/*/permissions") && method == http.MethodGet:
+				rbacHandler.GetUserPermissions(w, r)
+			case matchesPattern(path, "/api/v1/rbac/users/*/check-permission") && method == http.MethodPost:
+				rbacHandler.CheckPermission(w, r)
+			case matchesPattern(path, "/api/v1/rbac/users/*/audit-logs") && method == http.MethodGet:
+				rbacHandler.GetAuditLogs(w, r)
+			default:
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "User RBAC operation not found")
+			}
+			return
+		}
+		// Resource access policies endpoints
+		if strings.HasPrefix(path, "/api/v1/rbac/policies") {
+			switch {
+			case path == "/api/v1/rbac/policies" && method == http.MethodGet:
+				rbacHandler.ListResourceAccessPolicies(w, r)
+			case path == "/api/v1/rbac/policies" && method == http.MethodPost:
+				rbacHandler.CreateResourceAccessPolicy(w, r)
+			case matchesPattern(path, "/api/v1/rbac/policies/*"):
+				if method == http.MethodPut || method == http.MethodPatch {
+					rbacHandler.UpdateResourceAccessPolicy(w, r)
+				} else if method == http.MethodDelete {
+					rbacHandler.DeleteResourceAccessPolicy(w, r)
+				} else {
+					respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Policy operation not found")
+				}
+			default:
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Policy operation not found")
+			}
+			return
+		}
 	}
 
 	// Unknown endpoint

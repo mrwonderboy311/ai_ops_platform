@@ -95,11 +95,16 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	var podLogsWSHandler *handler.PodLogsWebSocketHandler
 	var podTerminalWSHandler *handler.PodTerminalWebSocketHandler
 	var helmHandler *handler.HelmHandler
+	var otelHandler *handler.OtelHandler
+	var prometheusHandler *handler.PrometheusHandler
+	var grafanaHandler *handler.GrafanaHandler
+	var aiAnalysisHandler *handler.AIAnalysisHandler
 	var alertHandler *handler.AlertHandler
 	var auditHandler *handler.AuditHandler
 	var performanceHandler *handler.PerformanceHandler
 	var notificationHandler *handler.NotificationHandler
 	var userManagementHandler *handler.UserManagementHandler
+	var rbacHandler *handler.RBACHandler
 	if gormDB != nil {
 		hostHandler = handler.NewHostHandler(gormDB)
 		scanHandler = handler.NewScanHandler(gormDB)
@@ -114,11 +119,16 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 		podLogsWSHandler = handler.NewPodLogsWebSocketHandler(gormDB)
 		podTerminalWSHandler = handler.NewPodTerminalWebSocketHandler(gormDB)
 		helmHandler = handler.NewHelmHandler(gormDB)
+		otelHandler = handler.NewOtelHandler(gormDB)
+		prometheusHandler = handler.NewPrometheusHandler(gormDB)
+		grafanaHandler = handler.NewGrafanaHandler(gormDB)
+		aiAnalysisHandler = handler.NewAIAnalysisHandler(gormDB)
 		alertHandler = handler.NewAlertHandler(gormDB)
 		auditHandler = handler.NewAuditHandler(gormDB)
 		performanceHandler = handler.NewPerformanceHandler(gormDB, logger)
 		notificationHandler = handler.NewNotificationHandler(gormDB, logger)
 		userManagementHandler = handler.NewUserManagementHandler(gormDB, logger)
+		rbacHandler = handler.NewRBACHandler(gormDB)
 	}
 
 	// Register handlers
@@ -182,6 +192,26 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 		handler.RegisterHelmHandler(helmHandler)
 	}
 
+	// Register OpenTelemetry handler
+	if otelHandler != nil {
+		handler.RegisterOtelHandler(otelHandler)
+	}
+
+	// Register Prometheus handler
+	if prometheusHandler != nil {
+		handler.RegisterPrometheusHandler(prometheusHandler)
+	}
+
+	// Register Grafana handler
+	if grafanaHandler != nil {
+		handler.RegisterGrafanaHandler(grafanaHandler)
+	}
+
+	// Register AI Analysis handler
+	if aiAnalysisHandler != nil {
+		handler.RegisterAIAnalysisHandler(aiAnalysisHandler)
+	}
+
 	// Register alert handler
 	if alertHandler != nil {
 		handler.RegisterAlertHandler(alertHandler)
@@ -205,6 +235,11 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	// Register user management handler
 	if userManagementHandler != nil {
 		handler.RegisterUserManagementHandler(userManagementHandler)
+	}
+
+	// Register RBAC handler
+	if rbacHandler != nil {
+		handler.RegisterRBACHandler(rbacHandler)
 	}
 
 	// Apply middleware chain
