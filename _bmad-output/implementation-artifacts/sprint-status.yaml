@@ -65,7 +65,7 @@ development_status:
   3-1-ssh-proxy-service: done
   3-2-web-ssh-terminal-component: done
   3-3-file-transfer-api: done
-  3-4-file-management-interface: backlog
+  3-4-file-management-interface: done
   3-5-process-management-api: backlog
   3-6-batch-task-engine: backlog
   3-7-batch-task-execution-interface: backlog

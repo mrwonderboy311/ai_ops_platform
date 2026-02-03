@@ -7,6 +7,7 @@ import { PrivateRoute } from './components/PrivateRoute'
 import HostListPage from './pages/HostListPage'
 import HostDetailPage from './pages/HostDetailPage'
 import SSHTerminalPage from './pages/SSHTerminalPage'
+import FileManagementPage from './pages/FileManagementPage'
 
 // Dashboard placeholder component
 function Dashboard() {
@@ -77,6 +78,14 @@ function App() {
             element={
               <PrivateRoute>
                 <SSHTerminalPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/hosts/files/:id"
+            element={
+              <PrivateRoute>
+                <FileManagementPage />
               </PrivateRoute>
             }
           />

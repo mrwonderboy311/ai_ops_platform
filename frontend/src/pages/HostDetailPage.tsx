@@ -26,6 +26,7 @@ import {
   CloseOutlined,
   TagOutlined,
   CodeOutlined,
+  FolderOutlined,
 } from '@ant-design/icons'
 import { hostApi } from '../api/host'
 import type { UpdateHostRequest } from '../types/host'
@@ -204,13 +205,21 @@ const HostDetailPage: React.FC = () => {
           </Button>
 
           {(host.status === 'approved' || host.status === 'online') && (
-            <Button
-              type="primary"
-              icon={<CodeOutlined />}
-              onClick={() => navigate(`/hosts/ssh/${id}`)}
-            >
-              Terminal
-            </Button>
+            <>
+              <Button
+                type="primary"
+                icon={<CodeOutlined />}
+                onClick={() => navigate(`/hosts/ssh/${id}`)}
+              >
+                Terminal
+              </Button>
+              <Button
+                icon={<FolderOutlined />}
+                onClick={() => navigate(`/hosts/files/${id}`)}
+              >
+                File Manager
+              </Button>
+            </>
           )}
 
           {host.status === 'pending' && (
