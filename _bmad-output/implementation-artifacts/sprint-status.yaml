@@ -56,7 +56,7 @@ development_status:
   2-2-ssh-passive-scanning: done
   2-3-agent-development-and-active-reporting: done
   2-4-host-registration-and-approval: done
-  2-5-frontend-host-list-page: backlog
+  2-5-frontend-host-list-page: done
   2-6-frontend-host-detail-page: backlog
   epic-2-retrospective: optional
 

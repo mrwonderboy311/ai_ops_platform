@@ -4,6 +4,7 @@ import { ConfigProvider } from 'antd'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { PrivateRoute } from './components/PrivateRoute'
+import HostListPage from './pages/HostListPage'
 
 // Dashboard placeholder component
 function Dashboard() {
@@ -39,6 +40,7 @@ function Layout() {
       </header>
       <Routes>
         <Route path="/" element={<Dashboard />} />
+        <Route path="/hosts" element={<HostListPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
