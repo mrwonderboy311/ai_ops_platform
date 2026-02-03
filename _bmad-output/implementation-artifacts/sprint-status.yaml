@@ -63,7 +63,7 @@ development_status:
   # Epic 3: 主机远程运维
   epic-3: in-progress
   3-1-ssh-proxy-service: done
-  3-2-web-ssh-terminal-component: backlog
+  3-2-web-ssh-terminal-component: done
   3-3-file-transfer-api: backlog
   3-4-file-management-interface: backlog
   3-5-process-management-api: backlog

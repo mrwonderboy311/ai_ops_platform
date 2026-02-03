@@ -6,6 +6,7 @@ import { RegisterPage } from './pages/RegisterPage'
 import { PrivateRoute } from './components/PrivateRoute'
 import HostListPage from './pages/HostListPage'
 import HostDetailPage from './pages/HostDetailPage'
+import SSHTerminalPage from './pages/SSHTerminalPage'
 
 // Dashboard placeholder component
 function Dashboard() {
@@ -71,6 +72,14 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route
+            path="/hosts/ssh/:id"
+            element={
+              <PrivateRoute>
+                <SSHTerminalPage />
+              </PrivateRoute>
+            }
+          />
           <Route
             path="/*"
             element={

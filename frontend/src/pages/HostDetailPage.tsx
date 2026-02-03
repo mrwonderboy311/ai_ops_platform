@@ -25,6 +25,7 @@ import {
   CheckOutlined,
   CloseOutlined,
   TagOutlined,
+  CodeOutlined,
 } from '@ant-design/icons'
 import { hostApi } from '../api/host'
 import type { UpdateHostRequest } from '../types/host'
@@ -201,6 +202,16 @@ const HostDetailPage: React.FC = () => {
           <Button icon={<EditOutlined />} onClick={handleEdit}>
             Edit
           </Button>
+
+          {(host.status === 'approved' || host.status === 'online') && (
+            <Button
+              type="primary"
+              icon={<CodeOutlined />}
+              onClick={() => navigate(`/hosts/ssh/${id}`)}
+            >
+              Terminal
+            </Button>
+          )}
 
           {host.status === 'pending' && (
             <>
