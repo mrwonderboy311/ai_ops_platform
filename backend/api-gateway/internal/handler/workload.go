@@ -432,31 +432,76 @@ func (h *WorkloadHandler) DeletePod(w http.ResponseWriter, r *http.Request) {
 // Helper functions for Kubernetes operations
 
 func getDeployments(ctx context.Context, client *k8s.ClusterClient, namespace string) ([]map[string]interface{}, error) {
-	// This would use the Kubernetes client-go to list deployments
-	// For now, return a simplified response
-	return []map[string]interface{}{}, nil
+	deployments, err := client.GetDeployments(ctx, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]map[string]interface{}, len(deployments))
+	for i, d := range deployments {
+		result[i] = map[string]interface{}{
+			"name":              d.Name,
+			"namespace":         d.Namespace,
+			"replicas":          d.Replicas,
+			"readyReplicas":     d.ReadyReplicas,
+			"updatedReplicas":   d.UpdatedReplicas,
+			"availableReplicas": d.AvailableReplicas,
+			"image":             d.Image,
+			"createdAt":         d.CreatedAt,
+		}
+	}
+	return result, nil
 }
 
 func getPods(ctx context.Context, client *k8s.ClusterClient, namespace string) ([]map[string]interface{}, error) {
-	// This would use the Kubernetes client-go to list pods
-	// For now, return a simplified response
-	return []map[string]interface{}{}, nil
+	pods, err := client.GetPods(ctx, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]map[string]interface{}, len(pods))
+	for i, p := range pods {
+		result[i] = map[string]interface{}{
+			"name":         p.Name,
+			"namespace":    p.Namespace,
+			"status":       p.Status,
+			"phase":        p.Phase,
+			"podIp":        p.PodIP,
+			"nodeName":     p.NodeName,
+			"ready":        p.Ready,
+			"restartCount": p.RestartCount,
+			"ownerType":    p.OwnerType,
+			"ownerName":    p.OwnerName,
+			"createdAt":    p.CreatedAt,
+		}
+	}
+	return result, nil
 }
 
 func getServices(ctx context.Context, client *k8s.ClusterClient, namespace string) ([]map[string]interface{}, error) {
-	// This would use the Kubernetes client-go to list services
-	// For now, return a simplified response
-	return []map[string]interface{}{}, nil
+	services, err := client.GetServices(ctx, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]map[string]interface{}, len(services))
+	for i, s := range services {
+		result[i] = map[string]interface{}{
+			"name":       s.Name,
+			"namespace":  s.Namespace,
+			"type":       s.Type,
+			"clusterIp":  s.ClusterIP,
+			"ports":      s.Ports,
+			"createdAt":  s.CreatedAt,
+		}
+	}
+	return result, nil
 }
 
 func getPodLogs(ctx context.Context, client *k8s.ClusterClient, namespace, podName string, tailLines int64) (string, error) {
-	// This would use the Kubernetes client-go to get pod logs
-	// For now, return a simplified response
-	return "Logs not available - client-go integration needed", nil
+	return client.GetPodLogs(ctx, namespace, podName, tailLines)
 }
 
 func deletePod(ctx context.Context, client *k8s.ClusterClient, namespace, podName string) error {
-	// This would use the Kubernetes client-go to delete the pod
-	// For now, return nil as placeholder
-	return nil
+	return client.DeletePod(ctx, namespace, podName)
 }

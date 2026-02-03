@@ -4,9 +4,11 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/api/core/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -202,6 +204,150 @@ func (c *ClusterClient) Close() error {
 	return nil
 }
 
+// GetPods retrieves all pods from a namespace
+func (c *ClusterClient) GetPods(ctx context.Context, namespace string) ([]PodInfo, error) {
+	podList, err := c.clientset.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list pods: %w", err)
+	}
+
+	pods := make([]PodInfo, len(podList.Items))
+	for i, pod := range podList.Items {
+		// Get owner references
+		var ownerType, ownerName string
+		if len(pod.OwnerReferences) > 0 {
+			ownerType = string(pod.OwnerReferences[0].Kind)
+			ownerName = pod.OwnerReferences[0].Name
+		}
+
+		// Get restart count
+		restartCount := int32(0)
+		for _, cs := range pod.Status.ContainerStatuses {
+			restartCount += cs.RestartCount
+		}
+
+		// Check if pod is ready
+		ready := true
+		for _, cs := range pod.Status.ContainerStatuses {
+			if !cs.Ready {
+				ready = false
+				break
+			}
+		}
+
+		pods[i] = PodInfo{
+			Name:         pod.Name,
+			Namespace:    pod.Namespace,
+			Status:       string(pod.Status.Phase),
+			Phase:        string(pod.Status.Phase),
+			PodIP:        pod.Status.PodIP,
+			NodeName:     pod.Spec.NodeName,
+			Ready:        ready,
+			RestartCount: restartCount,
+			OwnerType:    ownerType,
+			OwnerName:    ownerName,
+			CreatedAt:    pod.CreationTimestamp.Time,
+		}
+	}
+
+	return pods, nil
+}
+
+// GetDeployments retrieves all deployments from a namespace
+func (c *ClusterClient) GetDeployments(ctx context.Context, namespace string) ([]DeploymentInfo, error) {
+	depList, err := c.clientset.AppsV1().Deployments(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list deployments: %w", err)
+	}
+
+	deployments := make([]DeploymentInfo, len(depList.Items))
+	for i, dep := range depList.Items {
+		// Get image from first container
+		image := ""
+		if len(dep.Spec.Template.Spec.Containers) > 0 {
+			image = dep.Spec.Template.Spec.Containers[0].Image
+		}
+
+		deployments[i] = DeploymentInfo{
+			Name:            dep.Name,
+			Namespace:       dep.Namespace,
+			Replicas:        *dep.Spec.Replicas,
+			ReadyReplicas:   dep.Status.ReadyReplicas,
+			UpdatedReplicas: dep.Status.UpdatedReplicas,
+			AvailableReplicas: dep.Status.AvailableReplicas,
+			Image:           image,
+			CreatedAt:       dep.CreationTimestamp.Time,
+		}
+	}
+
+	return deployments, nil
+}
+
+// GetServices retrieves all services from a namespace
+func (c *ClusterClient) GetServices(ctx context.Context, namespace string) ([]ServiceInfo, error) {
+	svcList, err := c.clientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to list services: %w", err)
+	}
+
+	services := make([]ServiceInfo, len(svcList.Items))
+	for i, svc := range svcList.Items {
+		// Convert ports
+		ports := make([]ServicePort, len(svc.Spec.Ports))
+		for j, port := range svc.Spec.Ports {
+			ports[j] = ServicePort{
+				Name:     port.Name,
+				Port:     port.Port,
+				Protocol: string(port.Protocol),
+				NodePort: port.NodePort,
+			}
+		}
+
+		services[i] = ServiceInfo{
+			Name:       svc.Name,
+			Namespace:  svc.Namespace,
+			Type:       string(svc.Spec.Type),
+			ClusterIP:  svc.Spec.ClusterIP,
+			Ports:      ports,
+			CreatedAt:  svc.CreationTimestamp.Time,
+		}
+	}
+
+	return services, nil
+}
+
+// GetPodLogs retrieves logs from a pod
+func (c *ClusterClient) GetPodLogs(ctx context.Context, namespace, podName string, tailLines int64) (string, error) {
+	req := c.clientset.CoreV1().Pods(namespace).GetLogs(podName, &v1.PodLogOptions{
+		TailLines: &tailLines,
+	})
+
+	logs, err := req.Stream(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to get pod logs: %w", err)
+	}
+	defer logs.Close()
+
+	buf := make([]byte, 4096)
+	var result string
+	for {
+		n, err := logs.Read(buf)
+		if n > 0 {
+			result += string(buf[:n])
+		}
+		if err != nil {
+			break
+		}
+	}
+
+	return result, nil
+}
+
+// DeletePod deletes a pod
+func (c *ClusterClient) DeletePod(ctx context.Context, namespace, podName string) error {
+	return c.clientset.CoreV1().Pods(namespace).Delete(ctx, podName, metav1.DeleteOptions{})
+}
+
 // Helper types and functions
 
 type ConnectionInfo struct {
@@ -239,6 +385,47 @@ type ClusterInfo struct {
 	IngressCount    int32  `json:"ingressCount"`
 	ConfigMapCount  int32  `json:"configMapCount"`
 	SecretCount     int32  `json:"secretCount"`
+}
+
+type PodInfo struct {
+	Name         string    `json:"name"`
+	Namespace    string    `json:"namespace"`
+	Status       string    `json:"status"`
+	Phase        string    `json:"phase"`
+	PodIP        string    `json:"podIp"`
+	NodeName     string    `json:"nodeName"`
+	Ready        bool      `json:"ready"`
+	RestartCount int32     `json:"restartCount"`
+	OwnerType    string    `json:"ownerType,omitempty"`
+	OwnerName    string    `json:"ownerName,omitempty"`
+	CreatedAt    time.Time `json:"createdAt"`
+}
+
+type DeploymentInfo struct {
+	Name              string    `json:"name"`
+	Namespace         string    `json:"namespace"`
+	Replicas          int32     `json:"replicas"`
+	ReadyReplicas     int32     `json:"readyReplicas"`
+	UpdatedReplicas   int32     `json:"updatedReplicas"`
+	AvailableReplicas int32     `json:"availableReplicas"`
+	Image             string    `json:"image"`
+	CreatedAt         time.Time `json:"createdAt"`
+}
+
+type ServiceInfo struct {
+	Name      string       `json:"name"`
+	Namespace string       `json:"namespace"`
+	Type      string       `json:"type"`
+	ClusterIP string       `json:"clusterIp"`
+	Ports     []ServicePort `json:"ports"`
+	CreatedAt time.Time    `json:"createdAt"`
+}
+
+type ServicePort struct {
+	Name     string `json:"name,omitempty"`
+	Port     int32  `json:"port"`
+	Protocol string `json:"protocol"`
+	NodePort int32  `json:"nodePort,omitempty"`
 }
 
 func getNodeAddress(node *v1.Node, addressType string) string {
