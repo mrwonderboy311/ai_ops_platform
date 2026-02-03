@@ -16,6 +16,7 @@ import { ClusterMonitoringPage } from './pages/ClusterMonitoringPage'
 import WorkloadListPage from './pages/WorkloadListPage'
 import PodDetailPage from './pages/PodDetailPage'
 import { HelmRepositoryPage } from './pages/HelmRepositoryPage'
+import { HelmApplicationPage } from './pages/HelmApplicationPage'
 import AlertListPage from './pages/AlertListPage'
 import AuditLogPage from './pages/AuditLogPage'
 import PerformanceDashboardPage from './pages/PerformanceDashboardPage'
@@ -64,6 +65,7 @@ function Layout() {
         <Route path="/clusters/:id/workloads" element={<WorkloadListPage />} />
         <Route path="/clusters/:id/namespaces/:namespace/pods/:podName" element={<PodDetailPage />} />
         <Route path="/helm/repositories" element={<HelmRepositoryPage />} />
+        <Route path="/helm/applications" element={<HelmApplicationPage />} />
         <Route path="/alerts" element={<AlertListPage />} />
         <Route path="/audit-logs" element={<AuditLogPage />} />
         <Route path="/performance" element={<PerformanceDashboardPage />} />

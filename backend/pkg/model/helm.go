@@ -134,3 +134,89 @@ type HelmRepoTestResponse struct {
 	Message    string `json:"message"`
 	Error      string `json:"error,omitempty"`
 }
+
+// HelmReleaseStatus represents the status of a Helm release
+type HelmReleaseStatus string
+
+const (
+	HelmReleaseStatusDeployed      HelmReleaseStatus = "deployed"
+	HelmReleaseStatusPending       HelmReleaseStatus = "pending"
+	HelmReleaseStatusPendingUpgrade HelmReleaseStatus = "pending-upgrade"
+	HelmReleaseStatusPendingRollback HelmReleaseStatus = "pending-rollback"
+	HelmReleaseStatusSuperseded    HelmReleaseStatus = "superseded"
+	HelmReleaseStatusFailed        HelmReleaseStatus = "failed"
+	HelmReleaseStatusUnknown       HelmReleaseStatus = "unknown"
+	HelmReleaseStatusUninstalling   HelmReleaseStatus = "uninstalling"
+)
+
+// HelmRelease represents a Helm release (installed application)
+type HelmRelease struct {
+	ID              uuid.UUID         `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v4()"`
+	UserID          uuid.UUID         `json:"userId" gorm:"type:uuid;not null;index"`
+	ClusterID       uuid.UUID         `json:"clusterId" gorm:"type:uuid;not null;index"`
+	Namespace       string            `json:"namespace" gorm:"type:varchar(255);not null;index"`
+	Name            string            `json:"name" gorm:"type:varchar(255);not null"`
+	Revision        int32             `json:"revision" gorm:"type:int;not null"`
+	Updated         string            `json:"updated" gorm:"type:varchar(50)"`
+	Status          HelmReleaseStatus `json:"status" gorm:"type:varchar(30);not null"`
+	Chart           string            `json:"chart" gorm:"type:varchar(500);not null"`
+	ChartVersion    string            `json:"chartVersion" gorm:"type:varchar(50);not null"`
+	AppVersion      string            `json:"appVersion" gorm:"type:varchar(50)"`
+	Icon            string            `json:"icon" gorm:"type:varchar(500)"`
+	Description     string            `json:"description" gorm:"type:text"`
+	Values          string            `json:"-" gorm:"type:text"` // YAML values (encrypted if sensitive)
+	Notes           string            `json:"notes" gorm:"type:text"`
+	CreatedAt       time.Time         `json:"createdAt" gorm:"type:timestamp;autoCreateTime"`
+	UpdatedAt       time.Time         `json:"updatedAt" gorm:"type:timestamp;autoUpdateTime"`
+	// Relations
+	Cluster         *K8sCluster       `json:"cluster,omitempty" gorm:"foreigner:ClusterID"`
+	User            *User             `json:"user,omitempty" gorm:"foreigner:UserID"`
+}
+
+// TableName specifies the table name for HelmRelease
+func (HelmRelease) TableName() string {
+	return "helm_releases"
+}
+
+// CreateHelmReleaseRequest represents a request to install a Helm release
+type CreateHelmReleaseRequest struct {
+	ClusterID    uuid.UUID `json:"clusterId" binding:"required"`
+	Namespace    string    `json:"namespace" binding:"required"`
+	Name         string    `json:"name" binding:"required"`
+	Chart        string    `json:"chart" binding:"required"`
+	ChartVersion string    `json:"chartVersion"`
+	Values       string    `json:"values"`
+	Description  string    `json:"description"`
+}
+
+// UpdateHelmReleaseRequest represents a request to upgrade a Helm release
+type UpdateHelmReleaseRequest struct {
+	ChartVersion string `json:"chartVersion"`
+	Values       string `json:"values"`
+}
+
+// RollbackHelmReleaseRequest represents a request to rollback a Helm release
+type RollbackHelmReleaseRequest struct {
+	Revision int32 `json:"revision"`
+}
+
+// ListHelmReleasesRequest represents a request to list Helm releases
+type ListHelmReleasesRequest struct {
+	ClusterID  *uuid.UUID         `form:"clusterId"`
+	Namespace  *string            `form:"namespace"`
+	Status     *HelmReleaseStatus `form:"status"`
+	Page       int                `form:"page" binding:"min=1"`
+	PageSize   int                `form:"pageSize" binding:"min=1,max=100"`
+}
+
+// HelmReleaseHistory represents a revision of a Helm release
+type HelmReleaseHistory struct {
+	Revision     int32             `json:"revision"`
+	Updated      string            `json:"updated"`
+	Status       HelmReleaseStatus `json:"status"`
+	Chart        string            `json:"chart"`
+	ChartVersion string            `json:"chartVersion"`
+	AppVersion   string            `json:"appVersion"`
+	Description  string            `json:"description"`
+}
+

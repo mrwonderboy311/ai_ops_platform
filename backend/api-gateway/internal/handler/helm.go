@@ -421,3 +421,427 @@ func (h *HelmHandler) SyncHelmRepo(w http.ResponseWriter, r *http.Request) {
 		"message": "Sync not yet implemented",
 	})
 }
+
+// ListHelmReleases lists all Helm releases for the authenticated user
+func (h *HelmHandler) ListHelmReleases(w http.ResponseWriter, r *http.Request) {
+	// Get user ID from context
+	userIDVal := r.Context().Value("user_id")
+	if userIDVal == nil {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "User not authenticated")
+		return
+	}
+
+	userID, ok := userIDVal.(string)
+	if !ok {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid user ID")
+		return
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid user ID format")
+		return
+	}
+
+	// Parse query parameters
+	page := 1
+	pageSize := 20
+	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+	if pageSizeStr := r.URL.Query().Get("pageSize"); pageSizeStr != "" {
+		if ps, err := strconv.Atoi(pageSizeStr); err == nil && ps > 0 && ps <= 100 {
+			pageSize = ps
+		}
+	}
+
+	// Build query
+	query := h.db.Model(&model.HelmRelease{}).Where("user_id = ?", userUUID)
+
+	// Apply filters
+	if clusterID := r.URL.Query().Get("clusterId"); clusterID != "" {
+		clusterUUID, err := uuid.Parse(clusterID)
+		if err == nil {
+			query = query.Where("cluster_id = ?", clusterUUID)
+		}
+	}
+	if namespace := r.URL.Query().Get("namespace"); namespace != "" {
+		query = query.Where("namespace = ?", namespace)
+	}
+	if status := r.URL.Query().Get("status"); status != "" {
+		query = query.Where("status = ?", status)
+	}
+
+	// Count total
+	var total int64
+	query.Count(&total)
+
+	// Fetch releases with cluster info
+	var releases []model.HelmRelease
+	offset := (page - 1) * pageSize
+	if err := query.Preload("Cluster").Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&releases).Error; err != nil {
+		respondWithError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch releases")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]interface{}{
+		"data":       releases,
+		"total":      total,
+		"page":       page,
+		"pageSize":   pageSize,
+		"totalPages": (total + int64(pageSize) - 1) / int64(pageSize),
+	})
+}
+
+// GetHelmRelease gets a specific Helm release
+func (h *HelmHandler) GetHelmRelease(w http.ResponseWriter, r *http.Request) {
+	// Extract release ID from URL path
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) < 5 {
+		respondWithError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid release ID")
+		return
+	}
+
+	releaseID := parts[4]
+	releaseUUID, err := uuid.Parse(releaseID)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid release ID format")
+		return
+	}
+
+	// Get user ID from context
+	userIDVal := r.Context().Value("user_id")
+	if userIDVal == nil {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "User not authenticated")
+		return
+	}
+
+	userID, ok := userIDVal.(string)
+	if !ok {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid user ID")
+		return
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid user ID format")
+		return
+	}
+
+	// Fetch release
+	var release model.HelmRelease
+	if err := h.db.Preload("Cluster").Where("id = ? AND user_id = ?", releaseUUID, userUUID).First(&release).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Release not found")
+		} else {
+			respondWithError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch release")
+		}
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, release)
+}
+
+// InstallHelmRelease installs a new Helm release
+func (h *HelmHandler) InstallHelmRelease(w http.ResponseWriter, r *http.Request) {
+	var req model.CreateHelmReleaseRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
+		return
+	}
+
+	// Get user ID from context
+	userIDVal := r.Context().Value("user_id")
+	if userIDVal == nil {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "User not authenticated")
+		return
+	}
+
+	userID, ok := userIDVal.(string)
+	if !ok {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid user ID")
+		return
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid user ID format")
+		return
+	}
+
+	// Verify cluster ownership
+	var cluster model.K8sCluster
+	if err := h.db.Where("id = ? AND user_id = ?", req.ClusterID, userUUID).First(&cluster).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Cluster not found")
+		} else {
+			respondWithError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch cluster")
+		}
+		return
+	}
+
+	// TODO: Implement actual Helm install using Helm Go SDK
+	// For now, create a placeholder release
+	release := model.HelmRelease{
+		ID:          uuid.New(),
+		UserID:      userUUID,
+		ClusterID:   req.ClusterID,
+		Namespace:   req.Namespace,
+		Name:        req.Name,
+		Revision:    1,
+		Status:      model.HelmReleaseStatusPending,
+		Chart:       req.Chart,
+		ChartVersion: req.ChartVersion,
+		Values:      req.Values,
+		Description: req.Description,
+	}
+
+	if err := h.db.Create(&release).Error; err != nil {
+		respondWithError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to create release")
+		return
+	}
+
+	respondWithJSON(w, http.StatusCreated, map[string]interface{}{
+		"message": "Release installation initiated (Helm SDK integration pending)",
+		"release": release,
+	})
+}
+
+// UpgradeHelmRelease upgrades a Helm release
+func (h *HelmHandler) UpgradeHelmRelease(w http.ResponseWriter, r *http.Request) {
+	// Extract release ID from URL path
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) < 5 {
+		respondWithError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid release ID")
+		return
+	}
+
+	releaseID := parts[4]
+	releaseUUID, err := uuid.Parse(releaseID)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid release ID format")
+		return
+	}
+
+	var req model.UpdateHelmReleaseRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
+		return
+	}
+
+	// Get user ID from context
+	userIDVal := r.Context().Value("user_id")
+	if userIDVal == nil {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "User not authenticated")
+		return
+	}
+
+	userID, ok := userIDVal.(string)
+	if !ok {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid user ID")
+		return
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid user ID format")
+		return
+	}
+
+	// Fetch release
+	var release model.HelmRelease
+	if err := h.db.Where("id = ? AND user_id = ?", releaseUUID, userUUID).First(&release).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Release not found")
+		} else {
+			respondWithError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch release")
+		}
+		return
+	}
+
+	// TODO: Implement actual Helm upgrade using Helm Go SDK
+	respondWithJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Release upgrade not yet implemented",
+	})
+}
+
+// RollbackHelmRelease rolls back a Helm release
+func (h *HelmHandler) RollbackHelmRelease(w http.ResponseWriter, r *http.Request) {
+	// Extract release ID from URL path
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) < 5 {
+		respondWithError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid release ID")
+		return
+	}
+
+	releaseID := parts[4]
+	releaseUUID, err := uuid.Parse(releaseID)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid release ID format")
+		return
+	}
+
+	var req model.RollbackHelmReleaseRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request body")
+		return
+	}
+
+	// Get user ID from context
+	userIDVal := r.Context().Value("user_id")
+	if userIDVal == nil {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "User not authenticated")
+		return
+	}
+
+	userID, ok := userIDVal.(string)
+	if !ok {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid user ID")
+		return
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid user ID format")
+		return
+	}
+
+	// Fetch release
+	var release model.HelmRelease
+	if err := h.db.Where("id = ? AND user_id = ?", releaseUUID, userUUID).First(&release).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Release not found")
+		} else {
+			respondWithError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch release")
+		}
+		return
+	}
+
+	// TODO: Implement actual Helm rollback using Helm Go SDK
+	respondWithJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Release rollback not yet implemented",
+	})
+}
+
+// UninstallHelmRelease uninstalls a Helm release
+func (h *HelmHandler) UninstallHelmRelease(w http.ResponseWriter, r *http.Request) {
+	// Extract release ID from URL path
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) < 5 {
+		respondWithError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid release ID")
+		return
+	}
+
+	releaseID := parts[4]
+	releaseUUID, err := uuid.Parse(releaseID)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid release ID format")
+		return
+	}
+
+	// Get user ID from context
+	userIDVal := r.Context().Value("user_id")
+	if userIDVal == nil {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "User not authenticated")
+		return
+	}
+
+	userID, ok := userIDVal.(string)
+	if !ok {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid user ID")
+		return
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid user ID format")
+		return
+	}
+
+	// Fetch release
+	var release model.HelmRelease
+	if err := h.db.Where("id = ? AND user_id = ?", releaseUUID, userUUID).First(&release).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Release not found")
+		} else {
+			respondWithError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch release")
+		}
+		return
+	}
+
+	// TODO: Implement actual Helm uninstall using Helm Go SDK
+	// For now, just delete the record
+	if err := h.db.Delete(&release).Error; err != nil {
+		respondWithError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to delete release")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, map[string]interface{}{
+		"message": "Release uninstalled (Helm SDK integration pending)",
+	})
+}
+
+// GetHelmReleaseHistory gets the history of a Helm release
+func (h *HelmHandler) GetHelmReleaseHistory(w http.ResponseWriter, r *http.Request) {
+	// Extract release ID from URL path
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) < 6 {
+		respondWithError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid request")
+		return
+	}
+
+	releaseID := parts[4]
+	releaseUUID, err := uuid.Parse(releaseID)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "INVALID_REQUEST", "Invalid release ID format")
+		return
+	}
+
+	// Get user ID from context
+	userIDVal := r.Context().Value("user_id")
+	if userIDVal == nil {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "User not authenticated")
+		return
+	}
+
+	userID, ok := userIDVal.(string)
+	if !ok {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid user ID")
+		return
+	}
+
+	userUUID, err := uuid.Parse(userID)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid user ID format")
+		return
+	}
+
+	// Fetch release
+	var release model.HelmRelease
+	if err := h.db.Where("id = ? AND user_id = ?", releaseUUID, userUUID).First(&release).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Release not found")
+		} else {
+			respondWithError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch release")
+		}
+		return
+	}
+
+	// TODO: Implement actual Helm history using Helm Go SDK
+	respondWithJSON(w, http.StatusOK, map[string]interface{}{
+		"history": []model.HelmReleaseHistory{
+			{
+				Revision:     release.Revision,
+				Updated:      release.Updated,
+				Status:       release.Status,
+				Chart:        release.Chart,
+				ChartVersion: release.ChartVersion,
+				AppVersion:   release.AppVersion,
+				Description:  release.Description,
+			},
+		},
+	})
+}
+

@@ -536,6 +536,39 @@ func API(w http.ResponseWriter, r *http.Request) {
 
 	// Helm repository endpoints
 	if strings.HasPrefix(path, "/api/v1/helm") && helmHandler != nil {
+		// Helm releases endpoints
+		if path == "/api/v1/helm/releases" && method == http.MethodGet {
+			helmHandler.ListHelmRepos(w, r)
+			return
+		}
+		if path == "/api/v1/helm/releases" && method == http.MethodPost {
+			helmHandler.InstallHelmRelease(w, r)
+			return
+		}
+		if matchesPattern(path, "/api/v1/helm/releases/*/history") && method == http.MethodGet {
+			helmHandler.GetHelmReleaseHistory(w, r)
+			return
+		}
+		if matchesPattern(path, "/api/v1/helm/releases/*/rollback") && method == http.MethodPost {
+			helmHandler.RollbackHelmRelease(w, r)
+			return
+		}
+		if matchesPattern(path, "/api/v1/helm/releases/*/upgrade") && method == http.MethodPost {
+			helmHandler.UpgradeHelmRelease(w, r)
+			return
+		}
+		if matchesPattern(path, "/api/v1/helm/releases/*"):
+			if method == http.MethodGet {
+				helmHandler.GetHelmRelease(w, r)
+			} else if method == http.MethodDelete {
+				helmHandler.UninstallHelmRelease(w, r)
+			} else {
+				respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Helm operation not found")
+			}
+			return
+		}
+
+		// Helm repository endpoints
 		switch {
 		case path == "/api/v1/helm/repositories" && method == http.MethodGet:
 			helmHandler.ListHelmRepos(w, r)
