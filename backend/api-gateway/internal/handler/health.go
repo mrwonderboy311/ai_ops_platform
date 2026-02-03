@@ -8,10 +8,11 @@ import (
 )
 
 var (
-	hostHandler *HostHandler
-	scanHandler *ScanHandler
-	agentHandler *AgentHandler
-	fileHandler *FileTransferHandler
+	hostHandler    *HostHandler
+	scanHandler    *ScanHandler
+	agentHandler   *AgentHandler
+	fileHandler    *FileTransferHandler
+	processHandler *ProcessManagementHandler
 )
 
 // RegisterHandlers registers the API handlers
@@ -24,6 +25,11 @@ func RegisterHandlers(hostH *HostHandler, scanH *ScanHandler, agentH *AgentHandl
 // RegisterFileHandler registers the file transfer handler
 func RegisterFileHandler(fileH *FileTransferHandler) {
 	fileHandler = fileH
+}
+
+// RegisterProcessHandler registers the process management handler
+func RegisterProcessHandler(processH *ProcessManagementHandler) {
+	processHandler = processH
 }
 
 // Health returns the health check response
@@ -90,6 +96,35 @@ func API(w http.ResponseWriter, r *http.Request) {
 			fileHandler.GetTransfers(w, r)
 		} else {
 			respondWithError(w, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "File service not available")
+		}
+		return
+	}
+
+	// Process management endpoints
+	if strings.HasPrefix(path, "/api/v1/processes/") && processHandler != nil {
+		switch {
+		case path == "/api/v1/processes/list" && method == http.MethodPost:
+			processHandler.ListProcesses(w, r)
+		case path == "/api/v1/processes/get" && method == http.MethodPost:
+			processHandler.GetProcess(w, r)
+		case path == "/api/v1/processes/kill" && method == http.MethodPost:
+			processHandler.KillProcess(w, r)
+		case path == "/api/v1/processes/execute" && method == http.MethodPost:
+			processHandler.ExecuteCommand(w, r)
+		case path == "/api/v1/processes/executions" && method == http.MethodGet:
+			processHandler.GetExecutions(w, r)
+		default:
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Process operation not found")
+		}
+		return
+	}
+
+	// Host-specific process execution endpoints
+	if matchesPattern(path, "/api/v1/hosts/*/executions") && method == http.MethodGet {
+		if processHandler != nil {
+			processHandler.GetExecutions(w, r)
+		} else {
+			respondWithError(w, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "Process service not available")
 		}
 		return
 	}

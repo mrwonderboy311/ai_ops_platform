@@ -81,18 +81,20 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	// Create services (pass nil for now, will be properly initialized in production)
 	authService := service.NewAuthService(userRepo, jwtManager, tokenRepo, ldapClient)
 
-	// Create host, scan, agent, SSH and file handlers (requires database)
+	// Create host, scan, agent, SSH, file and process handlers (requires database)
 	var hostHandler *handler.HostHandler
 	var scanHandler *handler.ScanHandler
 	var agentHandler *handler.AgentHandler
 	var sshWSHandler *handler.SSHWebSocketHandler
 	var fileHandler *handler.FileTransferHandler
+	var processHandler *handler.ProcessManagementHandler
 	if gormDB != nil {
 		hostHandler = handler.NewHostHandler(gormDB)
 		scanHandler = handler.NewScanHandler(gormDB)
 		agentHandler = handler.NewAgentHandler(gormDB)
 		sshWSHandler = handler.NewSSHWebSocketHandler(gormDB, nil) // TODO: pass proper logger
 		fileHandler = handler.NewFileTransferHandler(gormDB)
+		processHandler = handler.NewProcessManagementHandler(gormDB)
 	}
 
 	// Register handlers
@@ -114,6 +116,11 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	// Register file transfer handler
 	if fileHandler != nil {
 		handler.RegisterFileHandler(fileHandler)
+	}
+
+	// Register process management handler
+	if processHandler != nil {
+		handler.RegisterProcessHandler(processHandler)
 	}
 
 	// Apply middleware chain
