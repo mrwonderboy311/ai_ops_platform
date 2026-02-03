@@ -61,8 +61,8 @@ development_status:
   epic-2-retrospective: optional
 
   # Epic 3: 主机远程运维
-  epic-3: backlog
-  3-1-ssh-proxy-service: backlog
+  epic-3: in-progress
+  3-1-ssh-proxy-service: done
   3-2-web-ssh-terminal-component: backlog
   3-3-file-transfer-api: backlog
   3-4-file-management-interface: backlog

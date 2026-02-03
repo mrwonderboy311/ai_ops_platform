@@ -81,14 +81,16 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	// Create services (pass nil for now, will be properly initialized in production)
 	authService := service.NewAuthService(userRepo, jwtManager, tokenRepo, ldapClient)
 
-	// Create host, scan and agent handlers (requires database)
+	// Create host, scan, agent and SSH handlers (requires database)
 	var hostHandler *handler.HostHandler
 	var scanHandler *handler.ScanHandler
 	var agentHandler *handler.AgentHandler
+	var sshWSHandler *handler.SSHWebSocketHandler
 	if gormDB != nil {
 		hostHandler = handler.NewHostHandler(gormDB)
 		scanHandler = handler.NewScanHandler(gormDB)
 		agentHandler = handler.NewAgentHandler(gormDB)
+		sshWSHandler = handler.NewSSHWebSocketHandler(gormDB, nil) // TODO: pass proper logger
 	}
 
 	// Register handlers
@@ -98,6 +100,11 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	mux.Handle("/api/v1/auth/refresh", handler.NewRefreshTokenHandler(authService))
 	mux.HandleFunc("/health", handler.Health)
 	mux.HandleFunc("/api/", handler.API) // Catch-all for API routes
+
+	// Register SSH WebSocket handler (before middleware)
+	if sshWSHandler != nil {
+		mux.Handle("/ws/ssh/", sshWSHandler)
+	}
 
 	// Register host, scan and agent handlers
 	handler.RegisterHandlers(hostHandler, scanHandler, agentHandler)
