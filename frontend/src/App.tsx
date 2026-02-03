@@ -8,6 +8,8 @@ import HostListPage from './pages/HostListPage'
 import HostDetailPage from './pages/HostDetailPage'
 import SSHTerminalPage from './pages/SSHTerminalPage'
 import FileManagementPage from './pages/FileManagementPage'
+import { BatchTaskListPage } from './pages/BatchTaskListPage'
+import BatchTaskDetailPage from './pages/BatchTaskDetailPage'
 
 // Dashboard placeholder component
 function Dashboard() {
@@ -45,6 +47,8 @@ function Layout() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/hosts" element={<HostListPage />} />
         <Route path="/hosts/:id" element={<HostDetailPage />} />
+        <Route path="/batch-tasks" element={<BatchTaskListPage />} />
+        <Route path="/batch-tasks/:id" element={<BatchTaskDetailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
