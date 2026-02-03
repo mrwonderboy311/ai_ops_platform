@@ -11,9 +11,11 @@ import {
   CloseCircleOutlined,
   ExclamationCircleOutlined,
   FileTextOutlined,
+  PlayCircleOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { workloadApi } from '../api/workload'
+import { StreamingLogs } from '../components/StreamingLogs'
 import dayjs from 'dayjs'
 
 interface ContainerInfo {
@@ -69,6 +71,10 @@ export const PodDetailPage: React.FC = () => {
     visible: false,
     containerName: '',
     logs: '',
+  })
+  const [streamingLogsModal, setStreamingLogsModal] = useState<{ visible: boolean; containerName: string }>({
+    visible: false,
+    containerName: '',
   })
 
   // Fetch pod detail
@@ -174,13 +180,22 @@ export const PodDetailPage: React.FC = () => {
       title: 'Actions',
       key: 'actions',
       render: (_: any, record: ContainerInfo) => (
-        <Button
-          size="small"
-          icon={<FileTextOutlined />}
-          onClick={() => handleViewLogs(record.name)}
-        >
-          Logs
-        </Button>
+        <Space>
+          <Button
+            size="small"
+            icon={<PlayCircleOutlined />}
+            onClick={() => setStreamingLogsModal({ visible: true, containerName: record.name })}
+          >
+            Stream
+          </Button>
+          <Button
+            size="small"
+            icon={<FileTextOutlined />}
+            onClick={() => handleViewLogs(record.name)}
+          >
+            Logs
+          </Button>
+        </Space>
       ),
     },
   ]
@@ -368,6 +383,26 @@ export const PodDetailPage: React.FC = () => {
             {logsModal.logs || 'No logs available'}
           </pre>
         </div>
+      </Modal>
+
+      {/* Streaming Logs Modal */}
+      <Modal
+        title={`Streaming Logs: ${pod.name}`}
+        open={streamingLogsModal.visible}
+        onCancel={() => setStreamingLogsModal({ visible: false, containerName: '' })}
+        footer={null}
+        width={1000}
+        style={{ top: 20 }}
+        styles={{ body: { height: 'calc(100vh - 200px)' } }}
+      >
+        <StreamingLogs
+          clusterId={clusterId!}
+          namespace={namespace!}
+          podName={podName!}
+          containerName={streamingLogsModal.containerName}
+          visible={streamingLogsModal.visible}
+          onClose={() => setStreamingLogsModal({ visible: false, containerName: '' })}
+        />
       </Modal>
     </div>
   )

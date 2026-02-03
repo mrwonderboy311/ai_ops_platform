@@ -92,6 +92,7 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	var clusterHandler *handler.ClusterHandler
 	var clusterMetricsHandler *handler.ClusterMetricsHandler
 	var workloadHandler *handler.WorkloadHandler
+	var podLogsWSHandler *handler.PodLogsWebSocketHandler
 	var alertHandler *handler.AlertHandler
 	var auditHandler *handler.AuditHandler
 	var performanceHandler *handler.PerformanceHandler
@@ -108,6 +109,7 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 		clusterHandler = handler.NewClusterHandler(gormDB)
 		clusterMetricsHandler = handler.NewClusterMetricsHandler(gormDB)
 		workloadHandler = handler.NewWorkloadHandler(gormDB)
+		podLogsWSHandler = handler.NewPodLogsWebSocketHandler(gormDB)
 		alertHandler = handler.NewAlertHandler(gormDB)
 		auditHandler = handler.NewAuditHandler(gormDB)
 		performanceHandler = handler.NewPerformanceHandler(gormDB, logger)
@@ -159,6 +161,11 @@ func New(cfg *config.Config, logger *zap.Logger) *Server {
 	// Register workload handler
 	if workloadHandler != nil {
 		handler.RegisterWorkloadHandler(workloadHandler)
+	}
+
+	// Register pod logs websocket handler
+	if podLogsWSHandler != nil {
+		handler.RegisterPodLogsWebSocketHandler(podLogsWSHandler)
 	}
 
 	// Register alert handler

@@ -17,6 +17,7 @@ var (
 	clusterHandler      *ClusterHandler
 	clusterMetricsHandler *ClusterMetricsHandler
 	workloadHandler     *WorkloadHandler
+	podLogsWSHandler     *PodLogsWebSocketHandler
 	alertHandler        *AlertHandler
 	auditHandler        *AuditHandler
 	performanceHandler  *PerformanceHandler
@@ -59,6 +60,11 @@ func RegisterClusterMetricsHandler(metricsH *ClusterMetricsHandler) {
 // RegisterWorkloadHandler registers the workload handler
 func RegisterWorkloadHandler(workloadH *WorkloadHandler) {
 	workloadHandler = workloadH
+}
+
+// RegisterPodLogsWebSocketHandler registers the pod logs websocket handler
+func RegisterPodLogsWebSocketHandler(wsH *PodLogsWebSocketHandler) {
+	podLogsWSHandler = wsH
 }
 
 // RegisterAlertHandler registers the alert handler
@@ -269,6 +275,16 @@ func API(w http.ResponseWriter, r *http.Request) {
 
 	// Workload management endpoints
 	if strings.HasPrefix(path, "/api/v1/clusters") && workloadHandler != nil {
+		// Websocket endpoint for pod logs streaming
+		if path == "/api/v1/clusters/pod-logs/ws" && method == http.MethodGet {
+			if podLogsWSHandler != nil {
+				podLogsWSHandler.ServeHTTP(w, r)
+			} else {
+				respondWithError(w, http.StatusServiceUnavailable, "SERVICE_UNAVAILABLE", "WebSocket service not available")
+			}
+			return
+		}
+
 		switch {
 		case matchesPattern(path, "/api/v1/clusters/*/namespaces") && method == http.MethodGet:
 			workloadHandler.ListNamespaces(w, r)

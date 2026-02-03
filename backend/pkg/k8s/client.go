@@ -4,6 +4,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"io"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -341,6 +342,22 @@ func (c *ClusterClient) GetPodLogs(ctx context.Context, namespace, podName strin
 	}
 
 	return result, nil
+}
+
+// GetPodLogStream returns a stream for pod logs (for websocket streaming)
+func (c *ClusterClient) GetPodLogStream(namespace, podName, containerName string, tailLines int64) io.ReadCloser {
+	options := &v1.PodLogOptions{
+		Follow:     true,
+		TailLines:  &tailLines,
+		Timestamps: true,
+	}
+
+	if containerName != "" {
+		options.Container = containerName
+	}
+
+	req := c.clientset.CoreV1().Pods(namespace).GetLogs(podName, options)
+	return req.Context(context.Background())
 }
 
 // DeletePod deletes a pod
