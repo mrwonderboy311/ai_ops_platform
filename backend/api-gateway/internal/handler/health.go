@@ -19,6 +19,7 @@ var (
 	workloadHandler     *WorkloadHandler
 	alertHandler        *AlertHandler
 	auditHandler        *AuditHandler
+	performanceHandler  *PerformanceHandler
 )
 
 // RegisterHandlers registers the API handlers
@@ -66,6 +67,11 @@ func RegisterAlertHandler(alertH *AlertHandler) {
 // RegisterAuditHandler registers the audit handler
 func RegisterAuditHandler(auditH *AuditHandler) {
 	auditHandler = auditH
+}
+
+// RegisterPerformanceHandler registers the performance handler
+func RegisterPerformanceHandler(perfH *PerformanceHandler) {
+	performanceHandler = perfH
 }
 
 // Health returns the health check response
@@ -345,6 +351,29 @@ func API(w http.ResponseWriter, r *http.Request) {
 			auditHandler.GetResourceActivity(w, r)
 		default:
 			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Audit log operation not found")
+		}
+		return
+	}
+
+	// Performance monitoring endpoints
+	if strings.HasPrefix(path, "/api/v1/performance") && performanceHandler != nil {
+		switch {
+		case path == "/api/v1/performance/metrics" && method == http.MethodGet:
+			performanceHandler.GetMetrics(w, r)
+		case path == "/api/v1/performance/health" && method == http.MethodGet:
+			performanceHandler.GetSystemHealth(w, r)
+		case path == "/api/v1/performance/health/refresh" && method == http.MethodPost:
+			performanceHandler.RefreshSystemHealth(w, r)
+		case path == "/api/v1/performance/summary" && method == http.MethodGet:
+			performanceHandler.GetPerformanceSummary(w, r)
+		case path == "/api/v1/performance/trend" && method == http.MethodGet:
+			performanceHandler.GetTrendData(w, r)
+		case path == "/api/v1/performance/metrics" && method == http.MethodPost:
+			performanceHandler.CollectMetric(w, r)
+		case path == "/api/v1/performance/statistics" && method == http.MethodGet:
+			performanceHandler.GetMetricStatistics(w, r)
+		default:
+			respondWithError(w, http.StatusNotFound, "NOT_FOUND", "Performance operation not found")
 		}
 		return
 	}
